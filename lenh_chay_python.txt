@@ -1,0 +1,7 @@
+# Lệnh tạo môi trường
+python -m venv .venv
+
+# Lệnh connect vào env
+.\.venv\Scripts\activate
+
+pip list
