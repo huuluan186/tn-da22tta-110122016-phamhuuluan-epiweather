@@ -362,7 +362,7 @@ CREATE TABLE data_quality_checks (
 
 -- 4c. API request logs — production monitoring
 CREATE TABLE api_request_logs (
-    id                BIGSERIAL        PRIMARY KEY,
+    id                BIGSERIAL,
     endpoint          VARCHAR(100),    -- '/predict', '/risk_map', '/history'
     method            VARCHAR(10),
     disease           VARCHAR(20),
@@ -374,7 +374,8 @@ CREATE TABLE api_request_logs (
     status_code       SMALLINT,
     user_agent        VARCHAR(200),
     client_ip         INET,
-    requested_at      TIMESTAMPTZ      DEFAULT NOW()
+    requested_at      TIMESTAMPTZ      DEFAULT NOW(),
+    PRIMARY KEY (id, requested_at)     -- partition key phải nằm trong PK
 ) PARTITION BY RANGE (requested_at);
 
 CREATE TABLE api_logs_2026 PARTITION OF api_request_logs

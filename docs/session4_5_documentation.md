@@ -114,11 +114,11 @@ ERA5 cung cấp dữ liệu trên lưới tọa độ địa lý (latitude × lo
 4. Lấy toàn bộ time series của điểm lưới đó làm đại diện cho quốc gia
 ```
 
-**Kết quả:** 158/172 quốc gia (92%) có dữ liệu ERA5.
+**Kết quả:** 154/172 quốc gia (~90%) có dữ liệu ERA5.
 
-**14 quốc gia không map được** chủ yếu là:
-- Đảo nhỏ không có centroid đủ rõ ràng (ví dụ: Nauru, Tuvalu, San Marino)
-- Lãnh thổ không độc lập hoặc thiếu trong shapefile Natural Earth 50m
+**18 quốc gia không map được** chủ yếu là:
+- Đảo nhỏ không có centroid đủ rõ ràng (ví dụ: Maldives, Malta, Singapore)
+- Lãnh thổ không độc lập hoặc thiếu trong shapefile Natural Earth 50m (BLM, MAF, GLP, MTQ, GUF, TCA, CYM, DMA, KNA, AIA, ATG, BHS, BMU, X09–X12, XKX)
 
 **Hạn chế đã biết:** Nearest centroid không phản ánh đa dạng khí hậu trong lãnh thổ quốc gia lớn
 (ví dụ: Brazil — khí hậu Amazon khác miền Nam; Nga — khí hậu Siberia khác vùng Tây). Đây là
@@ -145,9 +145,9 @@ ERA5 gốc ở độ phân giải hourly. Pipeline thực hiện aggregate:
 | Chỉ số | Giá trị |
 |---|---|
 | File output | `era5_weekly_2010_2019_final.csv` |
-| Số hàng | ~820,000 (158 quốc gia × 10 năm × ~52 tuần) |
+| Số hàng | ~80.080 (154 quốc gia × 10 năm × 52 tuần) |
 | Số cột | 21 (iso3, iso_year, iso_week + 18 biến khí hậu) |
-| Coverage | 158/172 quốc gia (91.9%) |
+| Coverage | 154/172 quốc gia (~89.5%) |
 | Thời gian xử lý | ~2–3 giờ (download + spatial mapping) |
 
 ---
@@ -160,7 +160,7 @@ ERA5 gốc ở độ phân giải hourly. Pipeline thực hiện aggregate:
 |---|---|---|---|---|
 | WHO FluNet | Ca Influenza A+B từ hệ thống GISRS | 1995–2026 | 189 | Weekly |
 | OpenDengue v1.3 | Ca Dengue tổng hợp từ nhiều nguồn | 1990–2023 | ~60 | Weekly/Monthly |
-| ERA5 weekly | Khí hậu lịch sử (SESSION 4) | 2010–2019 | 158 | Weekly |
+| ERA5 weekly | Khí hậu lịch sử (SESSION 4) | 2010–2019 | 154 | Weekly |
 | WHO GHO | Ca Malaria (ước tính hàng năm) | 2000–2022 | ~100 | Annual → interpolate weekly |
 
 ---
@@ -290,7 +290,7 @@ seasonal normal — dẫn đến dự báo sai cho năm bình thường.
 | Chỉ số | Giá trị |
 |---|---|
 | File output | `master_weekly_2010_2019.csv` |
-| Shape | 64,949 rows × 27 columns |
+| Shape | 78.213 rows × 25 columns |
 | Quốc gia | 172 |
 | Giai đoạn | 2010–2019 (tuần ISO) |
 
@@ -299,7 +299,7 @@ seasonal normal — dẫn đến dự báo sai cho năm bình thường.
 | Cột | Missing | Giải thích |
 |---|---|---|
 | `inf_cases` | 0.0% | FluNet là anchor, đã fillna(0) |
-| `temp_c` (và ERA5 vars) | 30.8% | 14 quốc gia ERA5 không map được |
+| `temp_c` (và ERA5 vars) | 8.5% | 18 quốc gia ERA5 không map được |
 | `dengue_total` | 88.9% | Chỉ endemic countries có data — bình thường |
 | `malaria_cases` | 46.5% | WHO GHO không cover tất cả quốc gia |
 
@@ -309,8 +309,8 @@ seasonal normal — dẫn đến dự báo sai cho năm bình thường.
 
 | Quyết định | Lý do | Tác động |
 |---|---|---|
-| ERA5 thay vì NOAA/OpenWeatherMap historical | Coverage toàn cầu, reanalysis, miễn phí | Đồng nhất 158 quốc gia |
-| KD-tree nearest centroid | Đơn giản, nhanh, đủ chính xác cho quốc gia level | 14 quốc gia đảo nhỏ bị miss |
+| ERA5 thay vì NOAA/OpenWeatherMap historical | Coverage toàn cầu, reanalysis, miễn phí | Đồng nhất 154 quốc gia |
+| KD-tree nearest centroid | Đơn giản, nhanh, đủ chính xác cho quốc gia level | 18 quốc gia đảo nhỏ bị miss |
 | `INF_A + INF_B` thay vì `INF_ALL` | INF_ALL missing 44% | Target đầy đủ hơn |
 | `fillna(0)` cho inf_cases sau filter | Missing = không báo cáo, không phải = 0 ca thực | Giữ nguyên pattern báo cáo thực tế |
 | Log1p cho Dengue target | Brazil dominated 70% tổng ca | Model học được pattern các nước nhỏ |
