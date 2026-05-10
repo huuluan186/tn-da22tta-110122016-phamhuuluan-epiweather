@@ -217,3 +217,39 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .claude/
+
+# ============================================================
+# KLTN EpiWeather — Project-specific
+# ============================================================
+
+# ERA5 raw NetCDF files — 6.2GB, download lại được từ CDS API
+dataset/weather/era5_raw/
+*.nc
+*.flag
+
+# ERA5 checkpoint files — intermediate, tạo lại được từ era5_raw
+dataset/weather/processed/*_checkpoint.csv
+
+# Processed CSVs — generated từ pipeline, không cần track
+dataset/processed/
+
+# Model artifacts — pkl files (nếu có, dùng model registry thay vì git)
+models/*.pkl
+models/*.joblib
+*.pkl
+*.joblib
+
+# Credentials & secrets
+scripts/notion_config.py
+*.pem
+*.key
+
+# Database
+*.db
+*.sqlite
+
+# OS & editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
