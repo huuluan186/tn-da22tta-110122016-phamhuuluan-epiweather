@@ -1,0 +1,22 @@
+# Core data
+pandas
+numpy
+
+# Visualization
+matplotlib
+seaborn
+
+# ML
+scikit-learn
+xgboost
+prophet
+
+# Weather / geospatial
+xarray
+netcdf4
+cdsapi
+geopandas
+scipy
+
+# Utils
+python-dotenv
