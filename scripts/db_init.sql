@@ -281,7 +281,7 @@ CREATE TABLE IF NOT EXISTS data_quality_checks (
 );
 
 CREATE TABLE IF NOT EXISTS api_request_logs (
-    id                BIGSERIAL        PRIMARY KEY,
+    id                BIGSERIAL,
     endpoint          VARCHAR(100),
     method            VARCHAR(10),
     disease           VARCHAR(20),
@@ -291,7 +291,8 @@ CREATE TABLE IF NOT EXISTS api_request_logs (
     model_version_id  INTEGER,
     response_ms       INTEGER,
     status_code       SMALLINT,
-    requested_at      TIMESTAMPTZ      DEFAULT NOW()
+    requested_at      TIMESTAMPTZ      DEFAULT NOW(),
+    PRIMARY KEY (id, requested_at)
 ) PARTITION BY RANGE (requested_at);
 
 CREATE TABLE IF NOT EXISTS api_logs_2026 PARTITION OF api_request_logs
