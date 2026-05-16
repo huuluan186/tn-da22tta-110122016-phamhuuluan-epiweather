@@ -90,7 +90,7 @@ Lag time xác định bằng Cross-Correlation Function (CCF) giữa biến khí
 
 | Cột | Kiểu | Mô tả |
 |---|---|---|
-| `dengue_log1p` | float | `log1p(dengue_cases)` — ca dengue đã transform log1p (Brazil chiếm ~70% tổng ca toàn cầu) |
+| `dengue_log1p` | float | `log1p(dengue_cases)` — ca dengue đã transform log1p (Brazil chiếm 51.4% tổng ca toàn cầu 2010–2019) |
 
 ### Features — AR Lags (Autoregressive)
 

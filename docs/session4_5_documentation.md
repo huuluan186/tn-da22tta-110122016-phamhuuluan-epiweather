@@ -218,7 +218,7 @@ trong cùng một file.
 ```python
 dengue_log1p = np.log1p(dengue_total)
 ```
-> **Lý do:** Brazil chiếm ~70% tổng ca Dengue toàn cầu (>10 triệu ca trong 2010–2019).
+> **Lý do:** Brazil chiếm 51.4% tổng ca Dengue toàn cầu (7.15M / 13.9M ca trong 2010–2019).
 > Nếu dùng raw scale, model sẽ bị dominated bởi Brazil và không học được pattern
 > của các quốc gia khác. `log1p` nén phân phối, cho phép model học được cả Brazil
 > lẫn các nước có ca thấp hơn nhiều.
@@ -313,7 +313,7 @@ seasonal normal — dẫn đến dự báo sai cho năm bình thường.
 | KD-tree nearest centroid | Đơn giản, nhanh, đủ chính xác cho quốc gia level | 18 quốc gia đảo nhỏ bị miss |
 | `INF_A + INF_B` thay vì `INF_ALL` | INF_ALL missing 44% | Target đầy đủ hơn |
 | `fillna(0)` cho inf_cases sau filter | Missing = không báo cáo, không phải = 0 ca thực | Giữ nguyên pattern báo cáo thực tế |
-| Log1p cho Dengue target | Brazil dominated 70% tổng ca | Model học được pattern các nước nhỏ |
+| Log1p cho Dengue target | Brazil dominated 51.4% tổng ca (7.15M / 13.9M ca) | Model học được pattern các nước nhỏ |
 | Bỏ PARAINFLUENZA | Missing 85.5% | Tránh nhiễu feature |
 | Bỏ RSV_PROCESSED | Khác đơn vị với RSV | Tránh redundant feature không consistent |
 | Gộp UK X09–X12 → GBR | WHO không có mã tổng hợp | UK có đủ dữ liệu như các quốc gia khác |

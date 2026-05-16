@@ -218,6 +218,9 @@ __marimo__/
 .streamlit/secrets.toml
 
 # .claude/ — KLTN: track CLAUDE.md + guides for cross-machine sync
+# (patches archive + personal local settings are excluded)
+.claude/patches/
+.claude/settings.local.json
 
 # ============================================================
 # KLTN EpiWeather — Project-specific
