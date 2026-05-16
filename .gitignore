@@ -216,7 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-.claude/
+
+# .claude/ — KLTN: track CLAUDE.md + guides for cross-machine sync
 
 # ============================================================
 # KLTN EpiWeather — Project-specific
@@ -259,3 +260,5 @@ scripts/notion_config.py
 Thumbs.db
 *.swp
 *.swo
+
+docs/
