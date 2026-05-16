@@ -1,4 +1,4 @@
-DatasetName,TableName,FieldName,DataType,Description,Comments
+datasetName,TableName,FieldName,DataType,Description,Comments
 FluNet,VIW_FNT,WHOREGION,string,"WHO regions (AFR, AMR, EMR, EUR, SEAR, WPR)",see: https://www.who.int/about/structure
 FluNet,VIW_FNT,FLUSEASON,string,"Reporting season (NH=northern hemisphere, SH=southern hemisphere, YR=year-round reporting)",
 FluNet,VIW_FNT,HEMISPHERE,string,"Hemisphere (NH=northern hemisphere, SH=southern hemisphere)",
