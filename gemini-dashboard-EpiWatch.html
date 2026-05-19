@@ -1,0 +1,1559 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EpiWatch · Global Risk Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet" />
+
+    <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/map/js/world.js"></script>
+
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1f2e;
+            --surface-2: #141926;
+            --surface-3: #222837;
+            --border: #2a3040;
+            --border-soft: #232838;
+            --text-1: #f1f5f9;
+            --text-2: #94a3b8;
+            --text-3: #64748b;
+
+            --influenza: #3b82f6;
+            --dengue: #f59e0b;
+            --rsv: #10b981;
+            --parainfluenza: #8b5cf6;
+
+            --risk-low: #22c55e;
+            --risk-med: #f59e0b;
+            --risk-high: #ef4444;
+            --risk-crit: #dc2626;
+            --risk-none: #2a3040;
+
+            --pulse: #22c55e;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text-1);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 13px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        .app {
+            display: grid;
+            grid-template-rows: 56px 1fr;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            padding: 0 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: -0.01em;
+        }
+
+        .brand-mark {
+            width: 26px;
+            height: 26px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 6px;
+            display: grid;
+            place-items: center;
+            position: relative;
+        }
+
+        .brand-mark::after {
+            content: "";
+            position: absolute;
+            inset: 6px;
+            border: 1.5px solid #f1f5f9;
+            border-radius: 2px;
+            border-bottom: none;
+            border-right: none;
+            border-top-left-radius: 50%;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2px;
+        }
+
+        .nav-link {
+            padding: 8px 14px;
+            border-radius: 6px;
+            color: var(--text-2);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background .12s, color .12s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--text-1);
+            background: var(--surface-3);
+        }
+
+        .nav-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .week-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            font-feature-settings: 'tnum';
+        }
+
+        .week-indicator .week-label {
+            color: var(--text-3);
+        }
+
+        .week-indicator .week-value {
+            color: var(--text-1);
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--pulse);
+            position: relative;
+        }
+
+        .pulse::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: var(--pulse);
+            animation: pulse 2s ease-out infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: .7;
+            }
+
+            100% {
+                transform: scale(2.6);
+                opacity: 0;
+            }
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 6px;
+            color: var(--text-2);
+            cursor: pointer;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-3);
+            color: var(--text-1);
+        }
+
+        .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: grid;
+            place-items: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 280px 1fr 380px;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .sidebar {
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .side-section {
+            padding: 16px 16px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .side-section:last-child {
+            border-bottom: none;
+        }
+
+        .side-label {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--text-3);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .disease-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .disease-tab {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 10px;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-2);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            transition: background .1s, color .1s, border-color .1s;
+        }
+
+        .disease-tab:hover,
+        .disease-tab.active {
+            background: var(--surface-3);
+            color: var(--text-1);
+        }
+
+        .disease-tab.active {
+            border-color: var(--border);
+        }
+
+        .disease-tab .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .disease-tab .tab-name {
+            flex: 1;
+        }
+
+        .disease-tab .tab-count {
+            font-size: 11px;
+            color: var(--text-3);
+            font-feature-settings: 'tnum';
+        }
+
+        .disease-tab.active .tab-count {
+            color: var(--text-2);
+        }
+
+        .week-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .week-stepper {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-2);
+            cursor: pointer;
+        }
+
+        .week-stepper:hover {
+            color: var(--text-1);
+            border-color: var(--text-3);
+        }
+
+        .week-display {
+            flex: 1;
+            height: 32px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat-card {
+            padding: 10px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-soft);
+            border-radius: 6px;
+        }
+
+        .stat-card.full {
+            grid-column: 1 / -1;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-3);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .map-wrap {
+            position: relative;
+            background: var(--bg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .map-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        .map-header>* {
+            pointer-events: auto;
+        }
+
+        .map-title h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .map-title p {
+            margin: 2px 0 0;
+            font-size: 12px;
+            color: var(--text-2);
+        }
+
+        .echarts-map-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 16px;
+            left: 20px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 11px;
+            z-index: 3;
+        }
+
+        .legend-label {
+            color: var(--text-3);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-2);
+        }
+
+        .legend-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+        }
+
+        .alerts {
+            border-left: 1px solid var(--border);
+            background: var(--surface);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .alerts-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .alerts-head h3 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            gap: 8px;
+        }
+
+        .alerts-head .count {
+            background: var(--surface-3);
+            color: var(--text-1);
+            font-size: 11px;
+            padding: 1px 7px;
+            border-radius: 10px;
+        }
+
+        .alerts-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            cursor: pointer;
+        }
+
+        .alert:hover {
+            background: var(--surface-2);
+        }
+
+        .alert-row1 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-country {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .alert-meta {
+            margin-left: auto;
+            font-size: 10px;
+            color: var(--text-3);
+        }
+
+        .alert-row2 {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .disease-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 3px;
+        }
+
+        .risk-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 3px;
+            color: white;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--surface-3);
+        }
+
+        /* ── WEEK PICKER ADDITIONS ── */
+        .year-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .year-select {
+            flex: 1;
+            height: 30px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-1);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 0 8px;
+            cursor: pointer;
+            appearance: none;
+            text-align: center;
+        }
+
+        .year-select:focus {
+            outline: none;
+            border-color: var(--text-3);
+        }
+
+        .week-track {
+            margin-top: 8px;
+            height: 4px;
+            background: var(--surface-2);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .week-track-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.2s ease;
+        }
+
+        .week-meta {
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-3);
+            font-feature-settings: 'tnum';
+        }
+
+        /* ── WHO REGION FILTER ── */
+        .region-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .region-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 4px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: var(--text-2);
+            font-size: 12px;
+            user-select: none;
+        }
+
+        .region-row:hover {
+            color: var(--text-1);
+            background: var(--surface-3);
+        }
+
+        .region-check {
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 3px;
+            display: grid;
+            place-items: center;
+            background: var(--surface-2);
+            flex-shrink: 0;
+            transition: background 0.1s, border-color 0.1s;
+        }
+
+        .region-row.on .region-check {
+            background: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .region-row.on {
+            color: var(--text-1);
+        }
+
+        .region-count {
+            margin-left: auto;
+            color: var(--text-3);
+            font-size: 11px;
+            font-feature-settings: 'tnum';
+        }
+
+        /* ── SUMMARY STATS ── */
+        .stat-delta {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 2px;
+            font-size: 11px;
+            font-weight: 500;
+            font-feature-settings: 'tnum';
+        }
+
+        .stat-delta.up {
+            color: var(--risk-high);
+        }
+
+        .stat-delta.down {
+            color: var(--risk-low);
+        }
+
+        .stat-delta.flat {
+            color: var(--text-3);
+        }
+
+        /* ── ALERTS SIDEBAR UPGRADES ── */
+        .alerts-filter-bar {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border-soft);
+            background: var(--surface-2);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .af-select {
+            height: 26px;
+            background: var(--surface-3);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            color: var(--text-1);
+            font-family: inherit;
+            font-size: 11px;
+            padding: 0 6px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 80px;
+        }
+
+        .af-select:focus {
+            outline: none;
+            border-color: var(--text-3);
+        }
+
+        .af-label {
+            font-size: 10px;
+            color: var(--text-3);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            white-space: nowrap;
+        }
+
+        .alert-flag {
+            width: 20px;
+            height: 14px;
+            flex-shrink: 0;
+            border-radius: 2px;
+            background: var(--surface-3);
+            font-size: 9px;
+            display: grid;
+            place-items: center;
+            color: var(--text-3);
+            font-weight: 600;
+            letter-spacing: .04em;
+        }
+
+        .alert-region {
+            font-size: 11px;
+            color: var(--text-3);
+        }
+
+        .alert-row3 {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-2);
+            font-feature-settings: 'tnum';
+        }
+
+        .delta-up {
+            color: var(--risk-high);
+            font-weight: 600;
+        }
+
+        .delta-down {
+            color: var(--risk-low);
+            font-weight: 600;
+        }
+
+        .sparkline {
+            height: 22px;
+            width: 72px;
+            margin-left: auto;
+        }
+
+        /* NEW: ANALYTICS DASHBOARD */
+        .analytics-wrapper {
+            grid-column: 1 / -1;
+            background: var(--bg);
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .an-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .an-card.full {
+            grid-column: 1 / -1;
+        }
+
+        .an-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .an-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .an-subtitle {
+            font-size: 12px;
+            color: var(--text-3);
+            margin-top: 4px;
+        }
+
+        .an-chart-container {
+            flex: 1;
+            min-height: 300px;
+            width: 100%;
+        }
+
+        .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 10px;
+        }
+
+        .forecast-col {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            border-top: 3px solid transparent;
+        }
+
+        .forecast-wk {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-1);
+            margin-bottom: 8px;
+        }
+
+        .forecast-val {
+            font-size: 28px;
+            font-weight: 700;
+            font-feature-settings: "tnum";
+            margin-bottom: 8px;
+        }
+
+        .placeholder {
+            grid-column: 1 / -1;
+            display: grid;
+            place-items: center;
+            background: var(--bg);
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .placeholder-card {
+            max-width: 580px;
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+        }
+
+        .placeholder-card h1 {
+            margin-bottom: 12px;
+            font-size: 24px;
+            color: var(--text-1);
+        }
+
+        .placeholder-card p {
+            color: var(--text-2);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+        const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+        const DISEASES = [
+            { id: 'influenza', label: 'Influenza', color: '#3b82f6', short: 'FLU' },
+            { id: 'dengue', label: 'Dengue', color: '#f59e0b', short: 'DEN' },
+            { id: 'rsv', label: 'RSV', color: '#10b981', short: 'RSV' },
+            { id: 'parainfluenza', label: 'Parainfluenza', color: '#8b5cf6', short: 'PIV' },
+        ];
+
+        const RISK_LEVELS = {
+            none: { label: 'No data', color: '#2a3040' },
+            low: { label: 'LOW', color: '#22c55e' },
+            medium: { label: 'MEDIUM', color: '#f59e0b' },
+            high: { label: 'HIGH', color: '#ef4444' },
+            critical: { label: 'CRITICAL', color: '#dc2626' },
+        };
+
+        const WHO_REGIONS = [
+            { id: 'AFRO', label: 'African Region (AFRO)' },
+            { id: 'AMRO', label: 'Americas (PAHO/AMRO)' },
+            { id: 'EMRO', label: 'Eastern Mediterranean (EMRO)' },
+            { id: 'EURO', label: 'European Region (EURO)' },
+            { id: 'SEARO', label: 'South-East Asia (SEARO)' },
+            { id: 'WPRO', label: 'Western Pacific (WPRO)' },
+        ];
+
+        const COUNTRY_REGION = {
+            ALB: 'EURO', AUT: 'EURO', BEL: 'EURO', BGR: 'EURO', CHE: 'EURO', CZE: 'EURO', DEU: 'EURO', DNK: 'EURO', ESP: 'EURO', FIN: 'EURO', FRA: 'EURO', GBR: 'EURO', GRC: 'EURO', HUN: 'EURO', IRL: 'EURO', ITA: 'EURO', NLD: 'EURO', NOR: 'EURO', POL: 'EURO', PRT: 'EURO', ROU: 'EURO', RUS: 'EURO', SWE: 'EURO', TUR: 'EURO', UKR: 'EURO',
+            ARG: 'AMRO', BRA: 'AMRO', CAN: 'AMRO', CHL: 'AMRO', COL: 'AMRO', CUB: 'AMRO', MEX: 'AMRO', PER: 'AMRO', USA: 'AMRO', VEN: 'AMRO',
+            AFG: 'EMRO', EGY: 'EMRO', IRN: 'EMRO', IRQ: 'EMRO', MAR: 'EMRO', PAK: 'EMRO', SAU: 'EMRO', SYR: 'EMRO',
+            BGD: 'SEARO', IDN: 'SEARO', IND: 'SEARO', MMR: 'SEARO', THA: 'SEARO',
+            AUS: 'WPRO', CHN: 'WPRO', JPN: 'WPRO', KOR: 'WPRO', MYS: 'WPRO', PHL: 'WPRO', VNM: 'WPRO',
+            ZAF: 'AFRO', NGA: 'AFRO', KEN: 'AFRO', ETH: 'AFRO', COD: 'AFRO'
+        };
+
+        const ECHARTS_COUNTRY_NAMES = {
+            'USA': 'United States', 'CHN': 'China', 'IND': 'India', 'BRA': 'Brazil', 'RUS': 'Russia',
+            'AUS': 'Australia', 'CAN': 'Canada', 'FRA': 'France', 'DEU': 'Germany', 'GBR': 'United Kingdom',
+            'JPN': 'Japan', 'ZAF': 'South Africa', 'MEX': 'Mexico', 'IDN': 'Indonesia', 'VNM': 'Vietnam',
+            'PER': 'Peru', 'PHL': 'Philippines', 'NGA': 'Nigeria', 'ESP': 'Spain', 'ITA': 'Italy',
+            'COL': 'Colombia', 'ARG': 'Argentina', 'EGY': 'Egypt', 'IRN': 'Iran', 'TUR': 'Turkey',
+            'THA': 'Thailand', 'KOR': 'Korea', 'SAU': 'Saudi Arabia', 'POL': 'Poland', 'PAK': 'Pakistan',
+            'BGD': 'Bangladesh', 'SWE': 'Sweden', 'NOR': 'Norway', 'FIN': 'Finland', 'UKR': 'Ukraine',
+            'KEN': 'Kenya', 'ETH': 'Ethiopia', 'COD': 'Dem. Rep. Congo', 'MAR': 'Morocco'
+        };
+
+        function hash(str) {
+            let h = 2166136261;
+            for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+            return ((h >>> 0) / 4294967296);
+        }
+
+        function diseaseProfile(iso3, diseaseId, week) {
+            const region = COUNTRY_REGION[iso3] || 'EURO';
+            let base = 30;
+            const sin = (cycle, shift) => Math.sin(((week + shift) / 52) * Math.PI * 2 * cycle);
+
+            if (diseaseId === 'influenza') base = 30 + (['EURO', 'AMRO'].includes(region) ? sin(1, -2) * 30 : sin(1, 24) * 25);
+            else if (diseaseId === 'dengue') base = 35 + sin(1, 10) * 25;
+            else if (diseaseId === 'rsv') base = 28 + sin(1, -4) * 32;
+            else base = 30 + sin(2, 0) * 18;
+
+            const noise = (hash(iso3 + diseaseId + week) - 0.5) * 35;
+            const score = Math.max(0, Math.min(100, base + noise));
+
+            let risk;
+            if (score < 20) risk = 'low'; else if (score < 45) risk = 'medium'; else if (score < 70) risk = 'high'; else risk = 'critical';
+
+            return { iso3, score: Math.round(score), risk };
+        }
+
+        /* COMPONENTS */
+        function PulseDot() {
+            return <span className="pulse" />;
+        }
+
+        function Icon({ name, size = 16 }) {
+            const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+            switch (name) {
+                case 'search': return <svg {...p}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>;
+                case 'bell': return <svg {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>;
+                case 'settings': return <svg {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+                case 'chevron-left': return <svg {...p}><path d="m15 18-6-6 6-6" /></svg>;
+                case 'chevron-right': return <svg {...p}><path d="m9 18 6-6-6-6" /></svg>;
+                case 'activity': return <svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
+                default: return null;
+            }
+        }
+
+        function EChartsWorldMap({ disease, week, year, onCountrySelect }) {
+            const chartRef = useRef(null);
+            const echartInstance = useRef(null);
+
+            useEffect(() => {
+                if (!chartRef.current) return;
+                echartInstance.current = echarts.init(chartRef.current);
+
+                echartInstance.current.on('click', (params) => {
+                    if (params.name) onCountrySelect(params.name);
+                });
+
+                const handleResize = () => echartInstance.current.resize();
+                window.addEventListener('resize', handleResize);
+                return () => {
+                    window.removeEventListener('resize', handleResize);
+                    echartInstance.current.dispose();
+                };
+            }, [onCountrySelect]);
+
+            useEffect(() => {
+                if (!echartInstance.current) return;
+
+                const mapData = [];
+                Object.keys(ECHARTS_COUNTRY_NAMES).forEach(iso3 => {
+                    const echartName = ECHARTS_COUNTRY_NAMES[iso3];
+                    const profile = diseaseProfile(iso3, disease, week);
+                    mapData.push({
+                        name: echartName,
+                        value: profile.score,
+                        risk: profile.risk
+                    });
+                });
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: '#1a1f2e',
+                        borderColor: '#2a3040',
+                        textStyle: { color: '#f1f5f9', fontFamily: 'Inter' },
+                        formatter: (p) => {
+                            if (!p.value) return `<b>${p.name}</b><br/>No data available`;
+                            const riskBadge = `<span style="display:inline-block; margin-right:6px; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:3px; background:${RISK_LEVELS[p.data.risk].color}; color:white;">${RISK_LEVELS[p.data.risk].label}</span>`;
+                            return `<b>${p.name}</b><br/><br/>${riskBadge} <span style="font-weight:bold; font-size:14px;">${p.value}</span> / 100`;
+                        }
+                    },
+                    visualMap: { min: 0, max: 100, inRange: { color: ['#2a3040', '#22c55e', '#f59e0b', '#ef4444', '#dc2626'] }, show: false },
+                    series: [
+                        {
+                            type: 'map',
+                            map: 'world',
+                            roam: true,
+                            scaleLimit: { min: 1, max: 8 },
+                            itemStyle: { areaColor: '#2a3040', borderColor: '#1a1f2e', borderWidth: 0.5 },
+                            emphasis: { itemStyle: { areaColor: '#3b82f6', borderColor: '#ffffff', borderWidth: 1 }, label: { show: false } },
+                            data: mapData
+                        }
+                    ]
+                };
+
+                echartInstance.current.setOption(option);
+            }, [disease, week, year]);
+
+            return <div ref={chartRef} className="echarts-map-container" />;
+        }
+
+        function EpidemicCurveChart({ diseaseColor }) {
+            const chartRef = useRef(null);
+            useEffect(() => {
+                const chart = echarts.init(chartRef.current);
+                const weeks = Array.from({ length: 52 }, (_, i) => `W${String(i + 1).padStart(2, '0')}`);
+                const currentYear = weeks.map((_, i) => Math.floor(Math.sin(i / 8) * 3000 + 4000 + Math.random() * 500));
+                const prevYear = weeks.map((_, i) => Math.floor(Math.sin(i / 8.5) * 2800 + 3800 + Math.random() * 400));
+
+                chart.setOption({
+                    tooltip: { trigger: 'axis', backgroundColor: '#1a1f2e', borderColor: '#2a3040', textStyle: { color: '#fff' } },
+                    grid: { left: '3%', right: '4%', bottom: '8%', top: '5%', containLabel: true },
+                    xAxis: { type: 'category', boundaryGap: false, data: weeks, axisLine: { lineStyle: { color: '#2a3040' } }, axisLabel: { color: '#94a3b8' } },
+                    yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: '#232838', type: 'dashed' } }, axisLabel: { color: '#94a3b8' } },
+                    series: [
+                        {
+                            name: 'Current Year', type: 'line', data: currentYear, smooth: true, symbol: 'none',
+                            lineStyle: { color: diseaseColor, width: 3 },
+                            markArea: {
+                                itemStyle: { color: 'rgba(255,255,255,0.03)' },
+                                label: { position: 'insideTop', color: '#64748b', fontSize: 11 },
+                                data: [[{ xAxis: 'W20', name: 'COVID disruption (2020)' }, { xAxis: 'W24' }]]
+                            }
+                        },
+                        { name: 'Previous Year', type: 'line', data: prevYear, smooth: true, symbol: 'none', lineStyle: { color: '#64748b', width: 2, type: 'dashed' } }
+                    ]
+                });
+                const resize = () => chart.resize(); window.addEventListener('resize', resize);
+                return () => { window.removeEventListener('resize', resize); chart.dispose(); };
+            }, [diseaseColor]);
+            return <div ref={chartRef} className="an-chart-container" />;
+        }
+
+        function SeasonalHeatmapChart({ diseaseColor }) {
+            const chartRef = useRef(null);
+            useEffect(() => {
+                const chart = echarts.init(chartRef.current);
+                const weeks = Array.from({ length: 52 }, (_, i) => i + 1);
+                const regions = WHO_REGIONS.map(r => r.id);
+                const data = [];
+                regions.forEach((r, y) => { weeks.forEach((w, x) => { data.push([x, y, Math.random() * 100]); }); });
+
+                chart.setOption({
+                    tooltip: { position: 'top', backgroundColor: '#1a1f2e', borderColor: '#2a3040', textStyle: { color: '#fff' } },
+                    grid: { left: '10%', right: '5%', bottom: '15%', top: '5%' },
+                    xAxis: { type: 'category', data: weeks.map(w => `W${w}`), axisLine: { show: false }, axisLabel: { color: '#64748b', fontSize: 10 } },
+                    yAxis: { type: 'category', data: regions, axisLine: { show: false }, axisLabel: { color: '#94a3b8', fontSize: 11 } },
+                    visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', left: 'center', bottom: '0%', inRange: { color: ['#1a2030', diseaseColor] }, textStyle: { color: '#64748b' } },
+                    series: [{ type: 'heatmap', data: data, itemStyle: { borderColor: '#0f1117', borderWidth: 2 } }]
+                });
+                const resize = () => chart.resize(); window.addEventListener('resize', resize);
+                return () => { window.removeEventListener('resize', resize); chart.dispose(); };
+            }, [diseaseColor]);
+            return <div ref={chartRef} className="an-chart-container" />;
+        }
+
+        function ClimateDriversChart({ diseaseColor }) {
+            const chartRef = useRef(null);
+            useEffect(() => {
+                const chart = echarts.init(chartRef.current);
+                chart.setOption({
+                    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#1a1f2e', borderColor: '#2a3040', textStyle: { color: '#fff' } },
+                    grid: { left: '5%', right: '5%', bottom: '5%', top: '5%', containLabel: true },
+                    xAxis: { type: 'value', show: false },
+                    yAxis: { type: 'category', data: ['Dew Point', 'Wind Speed', 'Precipitation', 'Temperature', 'Humidity'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#f1f5f9', fontSize: 12 } },
+                    series: [{
+                        type: 'bar', data: [0.15, 0.22, 0.45, 0.68, 0.85],
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#1a2030' }, { offset: 1, color: diseaseColor }]),
+                            borderRadius: [0, 4, 4, 0]
+                        }
+                    }]
+                });
+                const resize = () => chart.resize(); window.addEventListener('resize', resize);
+                return () => { window.removeEventListener('resize', resize); chart.dispose(); };
+            }, [diseaseColor]);
+            return <div ref={chartRef} className="an-chart-container" />;
+        }
+
+        function ModelPerformanceChart() {
+            const chartRef = useRef(null);
+            useEffect(() => {
+                const chart = echarts.init(chartRef.current);
+                chart.setOption({
+                    tooltip: { backgroundColor: '#1a1f2e', borderColor: '#2a3040', textStyle: { color: '#fff' } },
+                    legend: { bottom: 0, textStyle: { color: '#94a3b8' }, icon: 'circle' },
+                    radar: { indicator: [{ name: 'RMSE', max: 1 }, { name: 'MAE', max: 1 }, { name: 'R²', max: 1 }, { name: 'F1', max: 1 }], splitNumber: 4, axisName: { color: '#f1f5f9' }, splitLine: { lineStyle: { color: ['#232838'] } }, splitArea: { show: false }, axisLine: { lineStyle: { color: '#232838' } } },
+                    series: [{
+                        type: 'radar', data: [
+                            { value: [0.82, 0.75, 0.88, 0.81], name: 'Influenza', itemStyle: { color: '#3b82f6' }, areaStyle: { opacity: 0.2 } },
+                            { value: [0.71, 0.68, 0.76, 0.73], name: 'Dengue', itemStyle: { color: '#f59e0b' }, areaStyle: { opacity: 0.2 } },
+                            { value: [0.79, 0.72, 0.82, 0.78], name: 'RSV', itemStyle: { color: '#10b981' }, areaStyle: { opacity: 0.2 } }
+                        ]
+                    }]
+                });
+                const resize = () => chart.resize(); window.addEventListener('resize', resize);
+                return () => { window.removeEventListener('resize', resize); chart.dispose(); };
+            }, []);
+            return <div ref={chartRef} className="an-chart-container" />;
+        }
+
+        function AnalyticsDashboard({ disease }) {
+            const activeDiseaseObj = DISEASES.find(d => d.id === disease);
+            return (
+                <div className="analytics-wrapper">
+                    <div className="analytics-grid">
+                        <div className="an-card full">
+                            <div className="an-header"><div className="an-title"><Icon name="activity" /> Epidemic Curve</div></div>
+                            <EpidemicCurveChart diseaseColor={activeDiseaseObj.color} />
+                        </div>
+                        <div className="an-card full">
+                            <div className="an-header"><div className="an-title">Seasonal Heatmap</div></div>
+                            <SeasonalHeatmapChart diseaseColor={activeDiseaseObj.color} />
+                        </div>
+                        <div className="an-card">
+                            <div className="an-header"><div className="an-title">Top Climate Drivers</div></div>
+                            <ClimateDriversChart diseaseColor={activeDiseaseObj.color} />
+                        </div>
+                        <div className="an-card">
+                            <div className="an-header"><div className="an-title">Model Performance</div></div>
+                            <ModelPerformanceChart />
+                        </div>
+                        <div className="an-card full">
+                            <div className="an-header"><div className="an-title">Forecast Horizon Risk</div></div>
+                            <div className="forecast-grid">
+                                <div className="forecast-col" style={{ borderTopColor: '#ef4444' }}><div className="forecast-wk">+1 Week</div><div className="forecast-val">12,450</div><span className="risk-badge" style={{ background: '#ef4444' }}>HIGH</span></div>
+                                <div className="forecast-col" style={{ borderTopColor: '#ef4444' }}><div className="forecast-wk">+2 Weeks</div><div className="forecast-val">14,200</div><span className="risk-badge" style={{ background: '#ef4444' }}>HIGH</span></div>
+                                <div className="forecast-col" style={{ borderTopColor: '#dc2626' }}><div className="forecast-wk">+3 Weeks</div><div className="forecast-val">18,900</div><span className="risk-badge" style={{ background: '#dc2626' }}>CRITICAL</span></div>
+                                <div className="forecast-col" style={{ borderTopColor: '#f59e0b' }}><div className="forecast-wk">+4 Weeks</div><div className="forecast-val">9,850</div><span className="risk-badge" style={{ background: '#f59e0b' }}>MEDIUM</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ── ISO3 → Alert country data ── */
+        const ALERT_COUNTRIES = [
+            { iso3: 'BRA', iso2: 'BR', name: 'Brazil', region: 'AMRO', disease: 'dengue', timeAgo: '1 h ago' },
+            { iso3: 'USA', iso2: 'US', name: 'United States', region: 'AMRO', disease: 'influenza', timeAgo: '3 h ago' },
+            { iso3: 'JPN', iso2: 'JP', name: 'Japan', region: 'WPRO', disease: 'influenza', timeAgo: '5 h ago' },
+            { iso3: 'IND', iso2: 'IN', name: 'India', region: 'SEARO', disease: 'dengue', timeAgo: '6 h ago' },
+            { iso3: 'VNM', iso2: 'VN', name: 'Vietnam', region: 'WPRO', disease: 'dengue', timeAgo: '8 h ago' },
+            { iso3: 'DEU', iso2: 'DE', name: 'Germany', region: 'EURO', disease: 'rsv', timeAgo: '9 h ago' },
+            { iso3: 'GBR', iso2: 'GB', name: 'United Kingdom', region: 'EURO', disease: 'influenza', timeAgo: '10 h ago' },
+            { iso3: 'MEX', iso2: 'MX', name: 'Mexico', region: 'AMRO', disease: 'parainfluenza', timeAgo: '12 h ago' },
+            { iso3: 'IDN', iso2: 'ID', name: 'Indonesia', region: 'SEARO', disease: 'dengue', timeAgo: '14 h ago' },
+            { iso3: 'PHL', iso2: 'PH', name: 'Philippines', region: 'WPRO', disease: 'dengue', timeAgo: '16 h ago' },
+            { iso3: 'NGA', iso2: 'NG', name: 'Nigeria', region: 'AFRO', disease: 'influenza', timeAgo: '18 h ago' },
+            { iso3: 'ZAF', iso2: 'ZA', name: 'South Africa', region: 'AFRO', disease: 'rsv', timeAgo: '20 h ago' },
+            { iso3: 'KOR', iso2: 'KR', name: 'South Korea', region: 'WPRO', disease: 'influenza', timeAgo: '22 h ago' },
+            { iso3: 'PER', iso2: 'PE', name: 'Peru', region: 'AMRO', disease: 'dengue', timeAgo: '1 d ago' },
+            { iso3: 'THA', iso2: 'TH', name: 'Thailand', region: 'SEARO', disease: 'dengue', timeAgo: '1 d ago' },
+        ];
+
+        const RISK_ORDER = { critical: 4, high: 3, medium: 2, low: 1, none: 0 };
+
+        /* ── Sparkline SVG ── */
+        function Sparkline({ data, color }) {
+            if (!data || !data.length) return null;
+            const w = 72, h = 22, pad = 2;
+            const max = Math.max(...data), min = Math.min(...data);
+            const range = Math.max(1, max - min);
+            const pts = data.map((v, i) => [
+                pad + (i / (data.length - 1)) * (w - pad * 2),
+                pad + (1 - (v - min) / range) * (h - pad * 2)
+            ]);
+            const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+            const area = path + ` L${pts[pts.length - 1][0]},${h} L${pts[0][0]},${h} Z`;
+            return (
+                <svg className="sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+                    <path d={area} fill={color} fillOpacity="0.15" />
+                    <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2" fill={color} />
+                </svg>
+            );
+        }
+
+        /* ── Alert Item (rich version) ── */
+        function AlertItem({ item, week }) {
+            const profile = diseaseProfile(item.iso3, item.disease, week);
+            const prevProfile = diseaseProfile(item.iso3, item.disease, week - 1);
+            const delta = profile.score - prevProfile.score;
+            const d = DISEASES.find(x => x.id === item.disease);
+            const trendData = Array.from({ length: 8 }, (_, i) =>
+                diseaseProfile(item.iso3, item.disease, week - 7 + i).score
+            );
+            return (
+                <div className="alert">
+                    <div className="alert-row1">
+                        <div className="alert-flag">{item.iso2}</div>
+                        <div>
+                            <div className="alert-country">{item.name}</div>
+                            <div className="alert-region">{item.region}</div>
+                        </div>
+                        <div className="alert-meta">{item.timeAgo}</div>
+                    </div>
+                    <div className="alert-row2">
+                        <span className="disease-tag" style={{ background: d.color + '22', color: d.color }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: d.color, display: 'inline-block', marginRight: 4 }}></span>
+                            {d.short}
+                        </span>
+                        <span className="risk-badge" style={{ background: RISK_LEVELS[profile.risk].color }}>
+                            {RISK_LEVELS[profile.risk].label}
+                        </span>
+                        <Sparkline data={trendData} color={d.color} />
+                    </div>
+                    <div className="alert-row3">
+                        <span>Score <strong style={{ color: 'var(--text-1)' }}>{profile.score}</strong>/100</span>
+                        <span className={delta > 0 ? 'delta-up' : 'delta-down'}>
+                            {delta >= 0 ? '+' : ''}{delta} vs last week
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ── Summary Stats Card ── */
+        function SummaryStats({ disease, week }) {
+            const d = DISEASES.find(x => x.id === disease);
+            const allCountries = Object.keys(COUNTRY_REGION);
+
+            const counts = useMemo(() => {
+                let reporting = 0, high = 0, totalScore = 0;
+                let prevHigh = 0;
+                allCountries.forEach(iso3 => {
+                    const p = diseaseProfile(iso3, disease, week);
+                    const pp = diseaseProfile(iso3, disease, week - 1);
+                    if (p.risk !== 'none') { reporting++; totalScore += p.score; }
+                    if (p.risk === 'high' || p.risk === 'critical') high++;
+                    if (pp.risk === 'high' || pp.risk === 'critical') prevHigh++;
+                });
+                const avgScore = reporting ? (totalScore / reporting).toFixed(1) : '—';
+                return { reporting, high, highDelta: high - prevHigh, avgScore };
+            }, [disease, week]);
+
+            const ArrowIcon = ({ up }) => (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {up ? <path d="M12 19V5m0 0-7 7m7-7 7 7" /> : <path d="M12 5v14m0 0 7-7m-7 7-7-7" />}
+                </svg>
+            );
+
+            return (
+                <div className="stats">
+                    <div className="stat-card">
+                        <div className="stat-label">Reporting</div>
+                        <div className="stat-value">{counts.reporting}</div>
+                        <div className="stat-delta flat">of {allCountries.length} countries</div>
+                    </div>
+                    <div className="stat-card">
+                        <div className="stat-label">High / Critical</div>
+                        <div className="stat-value" style={{ color: '#ef4444' }}>{counts.high}</div>
+                        <div className={`stat-delta ${counts.highDelta > 0 ? 'up' : counts.highDelta < 0 ? 'down' : 'flat'}`}>
+                            <ArrowIcon up={counts.highDelta > 0} />
+                            {counts.highDelta >= 0 ? '+' : ''}{counts.highDelta} vs W{week - 1}
+                        </div>
+                    </div>
+                    <div className="stat-card full">
+                        <div className="stat-label">Avg Risk Index</div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                            <div className="stat-value" style={{ color: d.color }}>{counts.avgScore}</div>
+                            <div className="stat-delta flat">/ 100</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ── WHO Region Filter ── */
+        function RegionFilter({ value, onToggle, disease, week }) {
+            const regionHighCount = useMemo(() => {
+                const counts = {};
+                WHO_REGIONS.forEach(r => { counts[r.id] = 0; });
+                Object.entries(COUNTRY_REGION).forEach(([iso3, region]) => {
+                    const p = diseaseProfile(iso3, disease, week);
+                    if (p.risk === 'high' || p.risk === 'critical') counts[region] = (counts[region] || 0) + 1;
+                });
+                return counts;
+            }, [disease, week]);
+
+            return (
+                <div className="region-list">
+                    {WHO_REGIONS.map(r => (
+                        <div
+                            key={r.id}
+                            className={`region-row ${value.includes(r.id) ? 'on' : ''}`}
+                            onClick={() => onToggle(r.id)}
+                        >
+                            <div className="region-check">
+                                {value.includes(r.id) && (
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M20 6 9 17l-5-5" />
+                                    </svg>
+                                )}
+                            </div>
+                            <span>{r.label}</span>
+                            <span className="region-count">{regionHighCount[r.id] || 0}</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        /* ── Alerts Sidebar (upgraded) ── */
+        function AlertsSidebar({ week }) {
+            const [filterDisease, setFilterDisease] = useState('all');
+            const [filterRisk, setFilterRisk] = useState('all');
+            const [sortBy, setSortBy] = useState('risk');
+
+            const filtered = useMemo(() => {
+                let list = ALERT_COUNTRIES.map(item => ({
+                    ...item,
+                    profile: diseaseProfile(item.iso3, item.disease, week),
+                }));
+                if (filterDisease !== 'all') list = list.filter(a => a.disease === filterDisease);
+                if (filterRisk !== 'all') list = list.filter(a => a.profile.risk === filterRisk);
+                if (sortBy === 'risk') list.sort((a, b) => RISK_ORDER[b.profile.risk] - RISK_ORDER[a.profile.risk]);
+                else if (sortBy === 'score') list.sort((a, b) => b.profile.score - a.profile.score);
+                else if (sortBy === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
+                return list;
+            }, [week, filterDisease, filterRisk, sortBy]);
+
+            return (
+                <aside className="alerts">
+                    <div className="alerts-head">
+                        <h3>Active Alerts <span className="count">{filtered.length}</span></h3>
+                    </div>
+
+                    {/* Filter + Sort bar */}
+                    <div className="alerts-filter-bar">
+                        <span className="af-label">Disease</span>
+                        <select className="af-select" value={filterDisease} onChange={e => setFilterDisease(e.target.value)}>
+                            <option value="all">All</option>
+                            {DISEASES.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                        </select>
+                    </div>
+                    <div className="alerts-filter-bar">
+                        <span className="af-label">Risk</span>
+                        <select className="af-select" value={filterRisk} onChange={e => setFilterRisk(e.target.value)}>
+                            <option value="all">All levels</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <span className="af-label" style={{ marginLeft: 4 }}>Sort</span>
+                        <select className="af-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+                            <option value="risk">By Risk</option>
+                            <option value="score">By Score</option>
+                            <option value="name">By Name</option>
+                        </select>
+                    </div>
+
+                    <div className="alerts-list">
+                        {filtered.length === 0 && (
+                            <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>
+                                No alerts match the current filters.
+                            </div>
+                        )}
+                        {filtered.map((item, i) => (
+                            <AlertItem key={i} item={item} week={week} />
+                        ))}
+                    </div>
+                </aside>
+            );
+        }
+
+        /* ── App ── */
+        function App() {
+            const [route, setRoute] = useState('Risk Map');
+            const [disease, setDisease] = useState('influenza');
+            const [week, setWeek] = useState(19);
+            const [year, setYear] = useState(2026);
+            const [regions, setRegions] = useState([]);
+
+            const toggleRegion = (id) => setRegions(r => r.includes(id) ? r.filter(x => x !== id) : [...r, id]);
+            const years = Array.from({ length: 17 }, (_, i) => 2010 + i); // 2010–2026
+            const weekPct = (week / 52 * 100).toFixed(1);
+
+            const activeDiseaseObj = DISEASES.find(d => d.id === disease);
+
+            return (
+                <div className="app">
+                    <header className="nav">
+                        <div className="brand"><div className="brand-mark"></div>EpiWatch</div>
+                        <nav className="nav-links">
+                            {['Risk Map', 'Analytics', 'Country Detail'].map(t => (
+                                <a key={t} className={`nav-link ${t === route ? 'active' : ''}`} onClick={() => setRoute(t)}>{t}</a>
+                            ))}
+                        </nav>
+                        <div className="nav-right">
+                            <div className="week-indicator">
+                                <PulseDot />
+                                <span className="week-label">LIVE</span>
+                                <span className="week-value">W{String(week).padStart(2, '0')} · {year}</span>
+                            </div>
+                            <div className="icon-btn"><Icon name="search" /></div>
+                            <div className="avatar">DR</div>
+                        </div>
+                    </header>
+
+                    {route === 'Risk Map' && (
+                        <div className="main">
+                            {/* ── LEFT SIDEBAR ── */}
+                            <aside className="sidebar">
+                                {/* Disease */}
+                                <div className="side-section">
+                                    <div className="side-label">Disease</div>
+                                    <div className="disease-tabs">
+                                        {DISEASES.map(d => (
+                                            <button key={d.id} className={`disease-tab ${disease === d.id ? 'active' : ''}`} onClick={() => setDisease(d.id)}>
+                                                <span className="swatch" style={{ background: d.color }}></span>
+                                                <span className="tab-name">{d.label}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Reporting Week — với year selector + progress bar */}
+                                <div className="side-section">
+                                    <div className="side-label">Reporting Week</div>
+                                    {/* Year selector */}
+                                    <div className="year-row">
+                                        <select
+                                            className="year-select"
+                                            value={year}
+                                            onChange={e => setYear(Number(e.target.value))}
+                                        >
+                                            {years.map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    </div>
+                                    {/* Week stepper */}
+                                    <div className="week-row">
+                                        <button className="week-stepper" onClick={() => setWeek(Math.max(1, week - 1))}>
+                                            <Icon name="chevron-left" size={14} />
+                                        </button>
+                                        <div className="week-display">W{String(week).padStart(2, '0')}</div>
+                                        <button className="week-stepper" onClick={() => setWeek(Math.min(52, week + 1))}>
+                                            <Icon name="chevron-right" size={14} />
+                                        </button>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="week-track">
+                                        <div className="week-track-fill" style={{ width: weekPct + '%' }} />
+                                    </div>
+                                    <div className="week-meta">
+                                        <span>W01</span>
+                                        <span>W{String(week).padStart(2, '0')} / 52</span>
+                                        <span>W52</span>
+                                    </div>
+                                </div>
+
+                                {/* WHO Region */}
+                                <div className="side-section">
+                                    <div className="side-label">WHO Region</div>
+                                    <RegionFilter
+                                        value={regions}
+                                        onToggle={toggleRegion}
+                                        disease={disease}
+                                        week={week}
+                                    />
+                                </div>
+
+                                {/* Summary Stats */}
+                                <div className="side-section" style={{ flex: 1 }}>
+                                    <div className="side-label">Summary · {activeDiseaseObj.label}</div>
+                                    <SummaryStats disease={disease} week={week} />
+                                </div>
+                            </aside>
+
+                            {/* ── MAP ── */}
+                            <div className="map-wrap">
+                                <div className="map-header">
+                                    <div className="map-title">
+                                        <h2>Global Risk Map · {activeDiseaseObj.label}</h2>
+                                        <p>W{String(week).padStart(2, '0')} · {year}{regions.length ? ` · ${regions.join(', ')}` : ''}</p>
+                                    </div>
+                                </div>
+                                <EChartsWorldMap disease={disease} week={week} year={year} onCountrySelect={() => setRoute('Country Detail')} />
+                                <div className="legend">
+                                    <span className="legend-label">Risk</span>
+                                    {Object.values(RISK_LEVELS).reverse().map((r, i) => (
+                                        <div key={i} className="legend-item">
+                                            <div className="legend-swatch" style={{ background: r.color }} />
+                                            {r.label}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* ── RIGHT SIDEBAR — upgraded alerts ── */}
+                            <AlertsSidebar week={week} />
+                        </div>
+                    )}
+
+                    {route === 'Analytics' && <AnalyticsDashboard disease={disease} />}
+
+                    {route === 'Country Detail' && (
+                        <div className="placeholder">
+                            <div className="placeholder-card">
+                                <h1>Country Detail View</h1>
+                                <p>Select a country on the map or navigate via the side panel to populate this view.</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+
+</html>
