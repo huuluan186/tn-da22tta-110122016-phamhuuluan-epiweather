@@ -73,15 +73,51 @@ References: Bortman 1999, Lowe et al. 2016, WHO EWARS, CDC FluSight
 
 ## Quy tắc viết commit message
 
-Luôn dùng format: `prefix: 1 câu mô tả đầy đủ ý nghĩa`
+Tuân theo **Conventional Commits**: `<type>(<scope>): <short description>`
 
-Prefix hợp lệ: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`
+Format: 1 câu mô tả đầy đủ ý nghĩa. **Không dùng** dạng list bullet, không dùng nhiều dòng mô tả.
 
-Ví dụ đúng:
-- `docs: correct ERA5 coverage stats and fix master dataset shape in session4_5 documentation`
-- `feat: add dataset_description.md with flu and dengue feature column definitions`
+### Types
 
-**Không dùng** dạng list bullet, không dùng nhiều dòng mô tả.
+| Type | Khi dùng |
+|---|---|
+| `feat` | Tính năng mới |
+| `fix` | Sửa bug |
+| `docs` | Chỉ thay đổi tài liệu |
+| `style` | Code style (formatting, không đổi logic) |
+| `refactor` | Tái cấu trúc, không fix bug cũng không thêm feature |
+| `perf` | Cải thiện hiệu năng |
+| `test` | Thêm hoặc cập nhật tests |
+| `chore` | Build process, dependencies, tooling |
+| `ci` | CI/CD configuration |
+
+### Scopes
+
+| Scope | Phạm vi |
+|---|---|
+| `api` | Backend routers, services |
+| `db` | Models, migrations |
+| `worker` | Background job processing |
+| `ai` | AI providers, embedding, LLM |
+| `mcp` | MCP server integration |
+| `ui` | Frontend components, pages |
+| `auth` | Authentication, RBAC |
+| `config` | Settings, environment |
+| `deps` | Dependency updates |
+
+### Ví dụ đúng
+
+```
+feat(api): add bulk delete endpoint for sources
+fix(worker): handle empty PDF files during ingestion
+docs: update HOW_TO_RUN with Neo4j setup
+refactor(ui): extract color picker into reusable component
+chore(deps): bump fastapi to 0.115.0
+feat: add dataset_description.md with flu and dengue feature column definitions
+docs: correct ERA5 coverage stats and fix master dataset shape in session4_5 documentation
+```
+
+Scope là optional — bỏ qua nếu thay đổi không thuộc scope cụ thể nào.
 
 ---
 
@@ -89,6 +125,13 @@ Ví dụ đúng:
 - Trả lời bằng **tiếng Việt**
 - Giữ nguyên thuật ngữ kỹ thuật bằng tiếng Anh (training, loss, overfitting,
   dataset, pipeline, feature engineering, lag time, KD-tree, etc.)
+- **BẮT BUỘC: Tiếng Việt phải có dấu đầy đủ** — trong notebook cells (markdown,
+  code comments, print/string), summary blocks, chat replies, mọi document.
+  - SAI: `KET QUA SESSION`, `Van de con lai`, `Generalize XUAT SAC`, `Khong bi anh huong`
+  - ĐÚNG: `KẾT QUẢ SESSION`, `Vấn đề còn lại`, `Generalize xuất sắc`, `Không bị ảnh hưởng`
+  - Áp dụng cho cả `print(f'KET QUA...')` trong code Python — KHÔNG được viết telex/không dấu
+  - Báo cáo tốt nghiệp + slide GVHD yêu cầu chính tả chuẩn — đây không phải optional
+  - Riêng tên file/biến/path vẫn giữ ASCII không dấu (Python convention)
 
 ---
 
@@ -366,7 +409,7 @@ Quyết định đã chốt:
 
 Files tạo ra:
 - data/processed/ten_file.csv (shape, mô tả ngắn)
-- models/ten_model_vN.pkl (metrics)
+- ml_models/ten_model_vN.pkl (metrics)
 
 Best result hiện tại:
 - Flu: model X, R² = x.xxx, RMSE = x.xxx

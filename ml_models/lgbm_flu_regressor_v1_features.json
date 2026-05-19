@@ -1,0 +1,34 @@
+{
+  "features": [
+    "flu_log_lag1",
+    "flu_log_lag2",
+    "flu_log_lag3",
+    "flu_log_rollmean4",
+    "flu_log_rollmean8",
+    "temp_c_lag3",
+    "temp_c_lag7",
+    "humidity_pct_lag1",
+    "humidity_pct_lag7",
+    "solar_wm2_lag7",
+    "dewpoint_c_lag1",
+    "iso_week_sin",
+    "iso_week_cos",
+    "iso_year",
+    "HEMISPHERE_NH",
+    "HEMISPHERE_SH"
+  ],
+  "target": "flu_log",
+  "version": "v1",
+  "date": "2026-05-16",
+  "model_type": "LightGBM",
+  "tuned": true,
+  "best_params": {
+    "n_estimators": 625,
+    "max_depth": 10,
+    "learning_rate": 0.02515375147899939,
+    "subsample": 0.629798063449943,
+    "colsample_bytree": 0.7359320746289262,
+    "reg_alpha": 0.001979867848589074,
+    "reg_lambda": 0.0011388735073265285
+  }
+}
