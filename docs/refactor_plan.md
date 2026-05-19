@@ -219,9 +219,79 @@
 - [x] Tạo `Dockerfile` (multi-stage: node builder + nginx) + `nginx.conf`
 - [x] shadcn/ui — bỏ qua (incompatible với Tailwind v4, sẽ dùng plain Tailwind)
 
+### Cách tạo lại từ đầu (nếu cần reset)
+
+**Bước 1 — Tạo project (dùng Vite 5, tránh Vite 8/9 thay đổi template):**
+
+```powershell
+npm create vite@5 frontend -- --template react-ts
+cd frontend
+```
+
+> **Lý do dùng vite@5:** `create-vite@9` (latest) tạo vanilla TS thay vì React —
+> không có JSX, không có `vite.config.ts`. Phải setup thủ công rất nhiều bước.
+> `create-vite@5` tạo đúng React template, chạy được ngay.
+
+**Bước 2 — Cài dependencies:**
+
+```powershell
+# Runtime
+npm install @tanstack/react-query axios react-router-dom zustand
+npm install react-leaflet leaflet @types/leaflet
+npm install recharts
+
+# Tailwind v4 (khác với v3 — không có tailwind.config.js)
+npm install -D tailwindcss @tailwindcss/vite
+```
+
+**Bước 3 — Cấu hình Tailwind v4 trong `vite.config.ts`:**
+
+```ts
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  server: {
+    port: 5173,
+    proxy: { "/api": { target: "http://localhost:8000", changeOrigin: true } },
+  },
+});
+```
+
+**Bước 4 — `src/index.css` (Tailwind v4 dùng CSS import, không config file):**
+
+```css
+@import "tailwindcss";
+```
+
+**Bước 5 — Cấu trúc thư mục tạo ra:**
+
+```
+frontend/src/
+├── api/           ← axios.ts, countries.ts, diseases.ts, infer.ts
+├── components/
+│   └── layout/   ← Layout.tsx, Sidebar.tsx, Navbar.tsx
+├── pages/        ← HomePage.tsx, DiseaseDetailPage.tsx, AnalyticsPage.tsx
+├── store/        ← (Zustand stores — Phase 8)
+├── types/        ← (TypeScript interfaces — Phase 8)
+├── App.tsx
+├── main.tsx
+└── index.css
+```
+
+**Bước 6 — Chạy dev:**
+
+```powershell
+npm run dev       # http://localhost:5173
+npm run build     # kiểm tra TS errors trước khi commit
+```
+
 ### Notes
-- create-vite@9 với `react-ts` template tạo vanilla TS (không có React) — phải manual setup React + `@vitejs/plugin-react`
 - Tailwind v4 không có `tailwind.config.js` — dùng CSS import `@import "tailwindcss"` + `@tailwindcss/vite` plugin
+- shadcn/ui chưa tương thích Tailwind v4 — dùng plain Tailwind classes thay thế
+- `VITE_API_BASE_URL` không đặt trong docker-compose vì Vite embed biến lúc build time; thay vào đó nginx proxy `/api/` → `backend:8000`
 
 ### Verify
 - [x] `npm run build` → `dist/` 259kB JS, 9kB CSS, 0 TS errors
