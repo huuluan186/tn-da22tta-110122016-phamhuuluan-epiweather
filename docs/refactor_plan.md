@@ -266,7 +266,17 @@ export default defineConfig({
 @import "tailwindcss";
 ```
 
-**Bước 5 — Cấu trúc thư mục tạo ra:**
+**Bước 5 — Tạo thư mục thủ công (Vite không tạo sẵn):**
+
+```powershell
+New-Item -ItemType Directory -Force -Path src/api, src/components/common, `
+  src/components/layout, src/components/maps, src/components/charts, `
+  src/pages, src/store, src/types
+```
+
+Sau đó tạo từng file `.tsx`/`.ts` bên trong — folder sẽ tự có khi file được tạo.
+
+**Cấu trúc thư mục tạo ra:**
 
 ```
 frontend/src/
