@@ -9,15 +9,18 @@ class Disease(BaseModel):
     target_transform: str
 
 
+class HoldoutMetrics(BaseModel):
+    r2: float
+    rmse: float
+    mae: float
+    n: int
+
+
 class ModelMetrics(BaseModel):
     disease: str
-    version: str
-    algorithm: str
-    r2_score: float
-    mae: float
-    rmse: float
-    smape_nonzero: float
-    risk_macro_f1: float
-    risk_accuracy: float
-    n_samples: int
-    notes: str
+    model_type: str        # LightGBM / RandomForest / XGBClassifier
+    r2_cv: float
+    rmse_cv: float
+    mae_cv: float
+    cv_folds: int
+    holdout_2022: HoldoutMetrics | None

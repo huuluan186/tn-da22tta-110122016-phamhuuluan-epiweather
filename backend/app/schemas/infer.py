@@ -6,7 +6,7 @@ class InferRequest(BaseModel):
     iso3: str = Field(..., min_length=3, max_length=3, description="ISO 3166-1 alpha-3")
     features: dict[str, float] = Field(
         ...,
-        description="Feature values theo tên feature trong pkl. Thiếu key → dùng 0.0",
+        description="Feature values theo tên trong *_features.json. Thiếu key → dùng 0.0.",
     )
 
 
@@ -15,10 +15,17 @@ class InferResponse(BaseModel):
 
     disease: str
     iso3: str
-    region: str
-    model_used: str
+
+    # Regression output
+    predicted_log: float
+    predicted_cases: float
+
+    # Classification output
     risk_level: str
     p_low: float
     p_med: float
     p_high: float
-    features_used: list[str]
+
+    # Feature lists (để frontend biết cần truyền gì)
+    regressor_features: list[str]
+    classifier_features: list[str]

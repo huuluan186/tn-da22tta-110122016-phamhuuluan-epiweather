@@ -37,18 +37,15 @@ services:
     ports:
       - "8000:8000"
 
-  # frontend: uncommit sau khi Phase 7 scaffold xong
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   depends_on:
-  #     - backend
-  #   environment:
-  #     VITE_API_BASE_URL: http://localhost:8000
-  #   ports:
-  #     - "3000:80"
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
 
 volumes:
   pgdata:

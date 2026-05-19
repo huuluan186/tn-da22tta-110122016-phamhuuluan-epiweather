@@ -1,0 +1,154 @@
+"""
+ML Engine — load và inference 4 model v1.
+
+Đây là single entry point cho mọi ML operation trong app.
+Trước đây logic này nằm trong app/ml/loader.py (Phase 4 refactor).
+
+Models:
+  lgbm_flu_regressor_v1.pkl      — LightGBM, predict log1p(flu cases)
+  rf_dengue_regressor_v1.pkl     — RandomForest, predict log1p(dengue cases)
+  xgb_flu_classifier_v1.pkl      — XGBClassifier, predict P(Low/Med/High) flu
+  xgb_dengue_classifier_v1.pkl   — XGBClassifier, predict P(Low/Med/High) dengue
+"""
+
+import json
+import pickle
+from pathlib import Path
+
+import joblib
+import numpy as np
+from loguru import logger
+
+# ── Internal state ─────────────────────────────────────────────────────────────
+
+_regressors: dict = {}
+_classifiers: dict = {}
+
+_REGRESSOR_FILES = {
+    "flu":    "lgbm_flu_regressor_v1",
+    "dengue": "rf_dengue_regressor_v1",
+}
+_CLASSIFIER_FILES = {
+    "flu":    "xgb_flu_classifier_v1",
+    "dengue": "xgb_dengue_classifier_v1",
+}
+
+_RISK_LABELS = {0: "Low", 1: "Medium", 2: "High"}
+
+
+# ── Load ───────────────────────────────────────────────────────────────────────
+
+def _load_artifact(models_dir: Path, stem: str) -> dict | None:
+    pkl_path = models_dir / f"{stem}.pkl"
+    if not pkl_path.exists():
+        logger.warning(f"SKIP — không tìm thấy: {pkl_path}")
+        return None
+
+    try:
+        model = joblib.load(pkl_path)
+    except Exception:
+        with open(pkl_path, "rb") as f:
+            model = pickle.load(f)
+
+    features_path = models_dir / f"{stem}_features.json"
+    with open(features_path) as f:
+        features_meta = json.load(f)
+    features: list[str] = features_meta["features"]
+
+    metrics: dict = {}
+    metrics_path = models_dir / f"{stem}_metrics.json"
+    if metrics_path.exists():
+        with open(metrics_path) as f:
+            metrics = json.load(f)
+
+    return {"model": model, "features": features, "metrics": metrics}
+
+
+def load_models(models_dir: Path) -> None:
+    """Gọi 1 lần khi FastAPI khởi động (lifespan)."""
+    models_dir = Path(models_dir)
+
+    for disease, stem in _REGRESSOR_FILES.items():
+        art = _load_artifact(models_dir, stem)
+        if art:
+            _regressors[disease] = art
+            logger.info(f"regressor '{disease}' loaded — {len(art['features'])} features")
+
+    for disease, stem in _CLASSIFIER_FILES.items():
+        art = _load_artifact(models_dir, stem)
+        if art:
+            _classifiers[disease] = art
+            logger.info(f"classifier '{disease}' loaded — {len(art['features'])} features")
+
+
+# ── Inference ──────────────────────────────────────────────────────────────────
+
+def _build_input(feature_values: dict[str, float], feature_list: list[str]) -> np.ndarray:
+    return np.array([[feature_values.get(f, 0.0) for f in feature_list]], dtype=np.float32)
+
+
+def predict_regression(disease: str, feature_values: dict[str, float]) -> dict:
+    if disease not in _regressors:
+        raise ValueError(f"Regressor '{disease}' chưa được load")
+    art = _regressors[disease]
+    X = _build_input(feature_values, art["features"])
+    predicted_log = float(art["model"].predict(X)[0])
+    predicted_cases = float(np.expm1(max(predicted_log, 0.0)))
+    return {
+        "predicted_log": round(predicted_log, 4),
+        "predicted_cases": round(predicted_cases, 1),
+    }
+
+
+def predict_classification(disease: str, feature_values: dict[str, float]) -> dict:
+    if disease not in _classifiers:
+        raise ValueError(f"Classifier '{disease}' chưa được load")
+    art = _classifiers[disease]
+    X = _build_input(feature_values, art["features"])
+    proba = art["model"].predict_proba(X)[0]
+    pred_idx = int(np.argmax(proba))
+    return {
+        "risk_level": _RISK_LABELS[pred_idx],
+        "p_low":  round(float(proba[0]), 4),
+        "p_med":  round(float(proba[1]), 4),
+        "p_high": round(float(proba[2]), 4),
+    }
+
+
+# ── Query helpers ──────────────────────────────────────────────────────────────
+
+def get_regressor_features(disease: str) -> list[str]:
+    return _regressors[disease]["features"] if disease in _regressors else []
+
+
+def get_classifier_features(disease: str) -> list[str]:
+    return _classifiers[disease]["features"] if disease in _classifiers else []
+
+
+def loaded_diseases() -> dict:
+    return {
+        "regressors": list(_regressors.keys()),
+        "classifiers": list(_classifiers.keys()),
+    }
+
+
+def get_model_metrics(disease: str) -> dict:
+    return {
+        "regressor": _regressors[disease]["metrics"] if disease in _regressors else None,
+        "classifier": _classifiers[disease]["metrics"] if disease in _classifiers else None,
+    }
+
+
+def get_metrics() -> dict:
+    result = {}
+    for disease, art in _regressors.items():
+        m = art["metrics"]
+        result[disease] = {
+            "model_type": "Regressor",
+            "r2_cv":   m.get("r2", 0.0),
+            "rmse_cv": m.get("rmse", 0.0),
+            "mae_cv":  m.get("mae", 0.0),
+            "cv_folds": m.get("cv_folds", 0),
+            "holdout_2022": m.get("test_2022"),
+        }
+    return result
