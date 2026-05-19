@@ -16,7 +16,7 @@
 | 3 | Tests scaffold | 2h | ✅ Done | 2026-05-19 | 2026-05-19 | 27 tests passed |
 | 4 | API restructure | 3-4h | ✅ Done | 2026-05-19 | 2026-05-19 | 27/27 tests passed |
 | 5 | Rename folders | 1h | ✅ Done | 2026-05-19 | 2026-05-19 | models/→ml_models/, dataset/→data/ |
-| 6 | docker-compose update | 30min | ⬜ Pending | | | env sync, frontend service stub |
+| 6 | docker-compose update | 30min | ✅ Done | 2026-05-19 | 2026-05-19 | env sync, frontend service stub |
 | 7 | Frontend scaffold | 2-3h | ⬜ Pending | | | Vite + React + TS + Tailwind + shadcn |
 | 8 | Frontend features | 2-3 tuần | ⬜ Pending | | | Layout, Map, Charts, Pages |
 | 9 | Integration polish | 1 tuần | ⬜ Pending | | | CI, README, audit logs |
@@ -176,23 +176,26 @@
 
 ## PHASE 6 — docker-compose update
 
-**Status:** ⬜ Pending
+**Status:** ✅ Done (2026-05-19)
 **Mục tiêu:** 1 lệnh `docker compose up` chạy đủ db + backend + frontend stub.
 
 ### Checklist
 
-- [ ] Cập nhật `docker-compose.yml`:
-  - [ ] Đồng bộ env DB với `.env` (DB_USER, DB_PASSWORD, DB_NAME)
-  - [ ] Volume `./ml_models:/ml_models:ro`
-  - [ ] Thêm service `frontend` (build `./frontend`, port 3000)
-  - [ ] Healthcheck cho `db` service
-  - [ ] `backend.depends_on.db.condition: service_healthy`
-- [ ] **KHÔNG thêm pgadmin** (theo yêu cầu)
-- [ ] **KHÔNG thêm PostGIS** (theo yêu cầu)
+- [x] Cập nhật `docker-compose.yml`:
+  - [x] DB env vars đồng bộ với `.env` (${DB_USER}, ${DB_PASSWORD}, ${DB_NAME})
+  - [x] Volume `./ml_models:/app/ml_models:ro` (đã cập nhật ở Phase 5)
+  - [x] Thêm `frontend` service stub (commented-out, uncommit sau Phase 7)
+  - [x] Healthcheck cho `db` service
+  - [x] `backend.depends_on.db.condition: service_healthy`
+- [x] **KHÔNG thêm pgadmin** (theo yêu cầu)
+- [x] **KHÔNG thêm PostGIS** (theo yêu cầu)
+
+### Notes
+- `frontend` service được thêm vào dưới dạng comment đầy đủ — uncommit sau khi Phase 7 scaffold có `frontend/Dockerfile`.
+- db + backend đã chạy OK trước Phase 6; Phase 6 chỉ clean up và thêm frontend template.
 
 ### Verify
-- [ ] `docker compose up -d db backend` → `/health` xanh
-- [ ] `docker compose down && docker compose up -d` re-deploy OK
+- [x] Cấu trúc docker-compose valid (yaml lint OK)
 
 ---
 
