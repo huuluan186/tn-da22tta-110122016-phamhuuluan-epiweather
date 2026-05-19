@@ -1,17 +1,14 @@
-import { useParams } from "react-router-dom";
-
 export default function DiseaseDetailPage() {
-  const { disease } = useParams<{ disease: string }>();
-  const title = disease === "flu" ? "Cúm mùa (Influenza)" : "Sốt xuất huyết (Dengue)";
-
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
-      <p className="text-gray-500 mb-6">
-        Trend chart, risk level và chi tiết dự báo theo quốc gia.
-      </p>
-      <div className="bg-white rounded-lg border border-gray-200 h-64 flex items-center justify-center">
-        <span className="text-gray-400 text-sm">Recharts trend — Phase 8</span>
+    <div className="flex-1 grid place-items-center bg-[var(--color-bg)] p-10 overflow-y-auto">
+      <div className="max-w-[580px] w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-10">
+        <h1 className="mb-3 text-2xl text-[var(--color-text-1)] font-semibold">
+          Country Detail View
+        </h1>
+        <p className="text-[var(--color-text-2)] leading-relaxed">
+          Chọn một quốc gia trên bản đồ hoặc điều hướng từ sidebar bên trái để xem chi tiết
+          trend, weather drivers và lịch sử cảnh báo.
+        </p>
       </div>
     </div>
   );
