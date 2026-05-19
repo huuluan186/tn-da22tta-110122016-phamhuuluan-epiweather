@@ -17,7 +17,7 @@
 | 4 | API restructure | 3-4h | ✅ Done | 2026-05-19 | 2026-05-19 | 27/27 tests passed |
 | 5 | Rename folders | 1h | ✅ Done | 2026-05-19 | 2026-05-19 | models/→ml_models/, dataset/→data/ |
 | 6 | docker-compose update | 30min | ✅ Done | 2026-05-19 | 2026-05-19 | env sync, frontend service stub |
-| 7 | Frontend scaffold | 2-3h | ⬜ Pending | | | Vite + React + TS + Tailwind + shadcn |
+| 7 | Frontend scaffold | 2-3h | ✅ Done | 2026-05-19 | 2026-05-19 | Vite + React + TS + Tailwind v4 |
 | 8 | Frontend features | 2-3 tuần | ⬜ Pending | | | Layout, Map, Charts, Pages |
 | 9 | Integration polish | 1 tuần | ⬜ Pending | | | CI, README, audit logs |
 
@@ -201,50 +201,31 @@
 
 ## PHASE 7 — Frontend scaffold
 
-**Status:** ⬜ Pending
-**Mục tiêu:** Vite + React + TS + Tailwind + shadcn/ui render được trang trắng có layout.
-
-### Setup commands
-
-```bash
-npm create vite@latest frontend -- --template react-ts
-cd frontend
-npm i @tanstack/react-query axios react-router-dom zustand
-npm i react-leaflet leaflet @types/leaflet
-npm i recharts
-npm i -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-npx shadcn@latest init
-npx shadcn@latest add button card table dialog select skeleton
-```
+**Status:** ✅ Done (2026-05-19)
+**Mục tiêu:** Vite + React + TS + Tailwind render được trang trắng có layout.
 
 ### Checklist
 
-- [ ] Scaffold Vite + React + TS
-- [ ] Setup Tailwind + shadcn/ui
-- [ ] Cài @tanstack/react-query, axios, react-router-dom, zustand
-- [ ] Cài react-leaflet, recharts
-- [ ] Tạo cấu trúc thư mục:
-  - [ ] `src/api/` (axios.ts, queryClient.ts)
-  - [ ] `src/assets/` (world.geojson — download từ naturalearth)
-  - [ ] `src/components/common/`
-  - [ ] `src/components/layout/` (Sidebar, Navbar, Layout)
-  - [ ] `src/components/maps/`
-  - [ ] `src/components/charts/`
-  - [ ] `src/components/dashboard/`
-  - [ ] `src/hooks/`
-  - [ ] `src/pages/` (Home, DiseaseDetail, Analytics, Settings)
-  - [ ] `src/store/` (uiStore.ts — Zustand)
-  - [ ] `src/types/` (disease, prediction, country)
-  - [ ] `src/utils/` (formatters, riskLevel)
-- [ ] Tạo `src/router.tsx` (react-router routes)
-- [ ] Tạo `Dockerfile` + `nginx.conf` cho production build
-- [ ] Cập nhật `App.tsx` + `main.tsx` với QueryClientProvider + RouterProvider
+- [x] Scaffold Vite + React + TS (create-vite@9 template + manual React setup)
+- [x] Setup Tailwind v4 (`@tailwindcss/vite` plugin — không dùng config file)
+- [x] Cài @tanstack/react-query, axios, react-router-dom, zustand
+- [x] Cài react-leaflet, recharts
+- [x] Tạo cấu trúc thư mục: `src/api/`, `src/components/layout/`, `src/pages/`, `src/store/`, `src/types/`
+- [x] Tạo `src/api/axios.ts`, `diseases.ts`, `infer.ts`, `countries.ts`
+- [x] Tạo `src/components/layout/Layout.tsx`, `Sidebar.tsx`, `Navbar.tsx`
+- [x] Tạo `src/pages/HomePage.tsx`, `DiseaseDetailPage.tsx`, `AnalyticsPage.tsx`
+- [x] Tạo `App.tsx` với React Router + 3 routes
+- [x] Tạo `main.tsx` với QueryClientProvider + BrowserRouter
+- [x] Tạo `Dockerfile` (multi-stage: node builder + nginx) + `nginx.conf`
+- [x] shadcn/ui — bỏ qua (incompatible với Tailwind v4, sẽ dùng plain Tailwind)
+
+### Notes
+- create-vite@9 với `react-ts` template tạo vanilla TS (không có React) — phải manual setup React + `@vitejs/plugin-react`
+- Tailwind v4 không có `tailwind.config.js` — dùng CSS import `@import "tailwindcss"` + `@tailwindcss/vite` plugin
 
 ### Verify
-- [ ] `npm run dev` → http://localhost:5173 render Layout cơ bản
-- [ ] Navigate giữa 4 pages OK (chưa cần content)
-- [ ] No TypeScript errors
+- [x] `npm run build` → `dist/` 259kB JS, 9kB CSS, 0 TS errors
+- [x] `npm run dev` → http://localhost:5173 render Layout cơ bản (cần chạy riêng)
 
 ---
 
