@@ -1,0 +1,10 @@
+{
+  "r2": 0.8293,
+  "rmse": 0.7751,
+  "mae": 0.5769,
+  "r2_std": 0.0125,
+  "cv_folds": 6,
+  "cv_type": "walk-forward",
+  "horizon": 2,
+  "training_period": "2010-2019"
+}
