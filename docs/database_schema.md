@@ -1,5 +1,7 @@
 # PostgreSQL Schema — EpiWeather ML System (MLOps-ready)
 
+**Lưu ý:** Tài liệu này là bản cũ (DDL chi tiết). Nguồn chuẩn hiện tại là [docs/database_schema_v2.md](docs/database_schema_v2.md) theo format mô tả, đã đồng bộ với schema thực tế.
+
 Tài liệu thiết kế cơ sở dữ liệu cho hệ thống cảnh báo nguy cơ dịch bệnh.
 Dùng cho **Chương 3 — Thiết kế hệ thống**.
 

@@ -134,11 +134,12 @@ TẦNG 2 — Observations (partitioned by iso_year)
     disease_cases ─── weather_observations (JSONB)
 
 TẦNG 3 — ML Pipeline
+    feature_configs ─── feature_snapshots
     model_versions ─── model_evaluations
-    feature_configs ─── risk_thresholds ─── predictions
+    risk_thresholds ─── predictions
 
 TẦNG 4 — MLOps & Ops
-    pipeline_runs ─── data_quality_checks ─── api_request_logs
+    pipeline_runs ─── pipeline_run_logs ─── data_quality_checks ─── api_request_logs
 
 TẦNG 5 — Materialized View (dashboard)
     mv_latest_predictions
@@ -150,9 +151,9 @@ TẦNG 5 — Materialized View (dashboard)
 
 **Tầng 2 — Observations:** Bảng `disease_cases` được partition theo `iso_year`, mỗi partition chứa dữ liệu của một năm. Bảng `weather_observations` lưu toàn bộ 17 biến ERA5 trong một cột JSONB với GIN index — giải pháp này cho phép bổ sung biến thời tiết mới mà không cần ALTER TABLE.
 
-**Tầng 3 — ML Pipeline:** Nhóm bảng này theo dõi toàn bộ vòng đời mô hình. `model_versions` lưu siêu dữ liệu phiên bản; `model_evaluations` lưu kết quả đánh giá từng phiên bản; `risk_thresholds` lưu ngưỡng phân loại nguy cơ per-country; `predictions` lưu kết quả dự báo toàn bộ validation set và được partition theo năm tương tự `disease_cases`.
+**Tầng 3 — ML Pipeline:** Nhóm bảng này theo dõi toàn bộ vòng đời mô hình. `feature_configs` định nghĩa feature set; `feature_snapshots` lưu vector features theo tuần để inference nhanh; `model_versions` lưu siêu dữ liệu phiên bản; `model_evaluations` lưu kết quả đánh giá; `risk_thresholds` lưu ngưỡng phân loại nguy cơ per-country; `predictions` lưu kết quả dự báo và được partition theo năm tương tự `disease_cases`.
 
-**Tầng 4 — MLOps:** `pipeline_runs` ghi lại mỗi lần chạy ETL hoặc inference pipeline (thời gian bắt đầu/kết thúc, số hàng xử lý, lỗi nếu có). `api_request_logs` theo dõi từng yêu cầu API trong production, được partition theo `requested_at` để quản lý vòng đời dữ liệu monitoring.
+**Tầng 4 — MLOps:** `pipeline_runs` ghi lại mỗi lần chạy ETL hoặc inference pipeline; `pipeline_run_logs` lưu log từng bước chi tiết; `api_request_logs` theo dõi từng yêu cầu API trong production và được partition theo `requested_at` để quản lý vòng đời dữ liệu monitoring.
 
 **Tầng 5 — Materialized View:** `mv_latest_predictions` chỉ giữ lại dự báo mới nhất cho mỗi cặp (disease, country, horizon_weeks), được refresh sau mỗi lần load data mới. Frontend truy vấn view này thay vì scan toàn bộ bảng `predictions`.
 
@@ -163,6 +164,7 @@ Hình 3.2 mô tả sơ đồ ERD rút gọn của hệ thống với các mối 
 ```
 countries (iso3) ──────< disease_cases (iso3 FK)
 countries (iso3) ──────< weather_observations (iso3 FK)
+countries (iso3) ──────< feature_snapshots (iso3 FK)
 countries (iso3) ──────< predictions (iso3 FK)
 countries (iso3) ──────< risk_thresholds (iso3)
 
@@ -180,6 +182,8 @@ model_versions (id) ──────< model_evaluations (model_version_id FK)
 model_versions (id) ──────< predictions (model_version_id FK)
 model_versions (id) ──────< risk_thresholds (model_version_id FK)
 model_versions (id) ──────< feature_configs (version_tag)
+
+pipeline_runs (run_id) ──────< pipeline_run_logs (run_id FK)
 ```
 *Hình 3.2. Sơ đồ quan hệ thực thể hệ thống EpiWeather.*
 
@@ -301,8 +305,9 @@ result                   │
   "iso_week": 20,
   "predicted_cases": 1243,
   "risk_level": "Medium",
-  "risk_q33": 85.0,
-  "risk_q67": 420.0,
+  "risk_probability": 0.42,
+  "risk_q33": null,
+  "risk_q67": null,
   "model_version": "v1.0",
   "confidence_lo": 890,
   "confidence_hi": 1650
