@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
+    # Weather provider keys
+    OWM_API_KEY: str = ""  # OpenWeatherMap — fallback provider (Phase 8 MLOps)
+    # Open-Meteo Archive API không cần key, dùng làm primary provider (Phase A-1)
+
     @field_validator("MODELS_DIR", mode="before")
     @classmethod
     def resolve_models_dir(cls, v):

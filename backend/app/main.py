@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.exceptions import EpiWeatherException
 from app.core.logging import setup_logging
 from app.services.ml_engine import load_models
+from app.services.scheduler import init_scheduler, shutdown_scheduler
 
 
 @asynccontextmanager
@@ -19,8 +20,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting EpiWeather API v{settings.APP_VERSION} (DEBUG={settings.DEBUG})")
     logger.info(f"Loading models from {settings.MODELS_DIR}")
     load_models(settings.MODELS_DIR)
+    init_scheduler()
     logger.info("Startup complete")
     yield
+    shutdown_scheduler()
     logger.info("Shutting down EpiWeather API")
 
 

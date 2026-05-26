@@ -86,6 +86,7 @@ class Prediction(Base):
     predicted_value: Mapped[float | None]
     predicted_cases: Mapped[float | None]
     risk_level: Mapped[str | None] = mapped_column(String(10))
+    risk_probability: Mapped[float | None]  # P(High) từ classifier — FE × 100 = severity score
     risk_q33: Mapped[float | None]
     risk_q67: Mapped[float | None]
     model_version_id: Mapped[int | None] = mapped_column(

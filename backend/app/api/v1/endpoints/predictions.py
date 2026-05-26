@@ -12,7 +12,7 @@ router = APIRouter(prefix="/predictions", tags=["predictions"])
 def get_prediction(
     disease: str,
     iso3: str,
-    year: int = Query(..., ge=2022, le=2030),
+    year: int = Query(..., ge=2010, le=2030),
     week: int = Query(..., ge=1, le=53),
     db: Session = Depends(get_db),
 ):
@@ -23,8 +23,10 @@ def get_prediction(
 def get_history(
     disease: str,
     iso3: str,
-    start_year: int = Query(2022, ge=2010),
-    end_year: int = Query(2022, le=2030),
+    start_year: int = Query(2010, ge=2010),
+    end_year: int = Query(2019, le=2030),
     db: Session = Depends(get_db),
 ):
     return prediction_service.get_history(db, disease, iso3, start_year, end_year)
+
+

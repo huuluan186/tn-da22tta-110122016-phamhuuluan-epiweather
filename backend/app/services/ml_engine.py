@@ -23,6 +23,7 @@ from loguru import logger
 
 _regressors: dict = {}
 _classifiers: dict = {}
+_regressors_mh: dict = {}  # multi-horizon: {(disease, h): artifact}
 
 _REGRESSOR_FILES = {
     "flu":    "lgbm_flu_regressor_v1",
@@ -33,6 +34,19 @@ _CLASSIFIER_FILES = {
     "dengue": "xgb_dengue_classifier_v1",
 }
 
+# Multi-horizon files (SESSION 8 — 21/05/2026)
+_REGRESSOR_MH_FILES: dict[tuple[str, int], str] = {
+    ("flu",    1): "lgbm_flu_regressor_h1_v1",
+    ("flu",    2): "lgbm_flu_regressor_h2_v1",
+    ("flu",    3): "lgbm_flu_regressor_h3_v1",
+    ("flu",    4): "lgbm_flu_regressor_h4_v1",
+    ("dengue", 1): "rf_dengue_regressor_h1_v1",
+    ("dengue", 2): "rf_dengue_regressor_h2_v1",
+    ("dengue", 3): "rf_dengue_regressor_h3_v1",
+    ("dengue", 4): "rf_dengue_regressor_h4_v1",
+}
+
+HORIZONS = [1, 2, 3, 4]
 _RISK_LABELS = {0: "Low", 1: "Medium", 2: "High"}
 
 
@@ -80,6 +94,12 @@ def load_models(models_dir: Path) -> None:
             _classifiers[disease] = art
             logger.info(f"classifier '{disease}' loaded — {len(art['features'])} features")
 
+    for (disease, h), stem in _REGRESSOR_MH_FILES.items():
+        art = _load_artifact(models_dir, stem)
+        if art:
+            _regressors_mh[(disease, h)] = art
+            logger.info(f"regressor_mh '{disease}' h={h} loaded — R²={art['metrics'].get('r2', 'n/a')}")
+
 
 # ── Inference ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +120,26 @@ def predict_regression(disease: str, feature_values: dict[str, float]) -> dict:
     }
 
 
+def predict_horizon(disease: str, horizon: int, feature_values: dict[str, float]) -> dict:
+    """Predict 1 horizon cụ thể (h=1..4) — dùng cho /forecast endpoint."""
+    key = (disease, horizon)
+    if key not in _regressors_mh:
+        raise ValueError(f"Multi-horizon regressor '{disease}' h={horizon} chưa được load")
+    art = _regressors_mh[key]
+    X = _build_input(feature_values, art["features"])
+    predicted_log = float(art["model"].predict(X)[0])
+    predicted_cases = float(np.expm1(max(predicted_log, 0.0)))
+    metrics = art["metrics"]
+    return {
+        "predicted_log": round(predicted_log, 4),
+        "predicted_cases": round(predicted_cases, 1),
+        "r2_cv": metrics.get("r2"),
+        "rmse_cv": metrics.get("rmse"),
+        "mae_cv": metrics.get("mae"),
+        "model_version": f"{disease}_h{horizon}_v1",
+    }
+
+
 def predict_classification(disease: str, feature_values: dict[str, float]) -> dict:
     if disease not in _classifiers:
         raise ValueError(f"Classifier '{disease}' chưa được load")
@@ -109,6 +149,9 @@ def predict_classification(disease: str, feature_values: dict[str, float]) -> di
     pred_idx = int(np.argmax(proba))
     return {
         "risk_level": _RISK_LABELS[pred_idx],
+        # Score = P(High) — đo "mức độ rủi ro" liên tục 0..1, không phải confidence.
+        # Cao = nguy hiểm. Nước Low chắc chắn vẫn có score thấp (đúng intuition).
+        "risk_probability": round(float(proba[2]), 4),
         "p_low":  round(float(proba[0]), 4),
         "p_med":  round(float(proba[1]), 4),
         "p_high": round(float(proba[2]), 4),

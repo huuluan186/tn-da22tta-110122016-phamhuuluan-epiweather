@@ -1,4 +1,7 @@
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, JSON, SmallInteger, String
+from datetime import datetime
+
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, JSON, SmallInteger, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .geography import Base
@@ -37,6 +40,23 @@ class WeatherObservation(Base):
     iso_year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     iso_week: Mapped[int] = mapped_column(SmallInteger)
     data: Mapped[dict] = mapped_column(JSON)
+
+
+class FeatureSnapshot(Base):
+    """
+    Pre-computed feature vector cho (disease, iso3, iso_year, iso_week).
+    JSONB column cho phép mở rộng feature set không cần ALTER TABLE.
+    """
+    __tablename__ = "feature_snapshots"
+
+    disease_id: Mapped[int] = mapped_column(ForeignKey("diseases.id"), primary_key=True)
+    iso3: Mapped[str] = mapped_column(String(3), ForeignKey("countries.iso3"), primary_key=True)
+    iso_year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    iso_week: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    feature_version: Mapped[str] = mapped_column(String(10), primary_key=True, default="v1")
+    features: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class FeatureConfig(Base):

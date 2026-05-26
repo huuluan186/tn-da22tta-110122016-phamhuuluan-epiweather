@@ -22,6 +22,17 @@ def get_one(
     )
 
 
+def get_latest_week(db: Session, disease_id: int) -> tuple[int, int] | None:
+    """Tuần (iso_year, iso_week) mới nhất có ít nhất 1 prediction cho disease này."""
+    row = (
+        db.query(Prediction.iso_year, Prediction.iso_week)
+        .filter(Prediction.disease_id == disease_id)
+        .order_by(Prediction.iso_year.desc(), Prediction.iso_week.desc())
+        .first()
+    )
+    return (row[0], row[1]) if row else None
+
+
 def list_for_map(
     db: Session,
     disease_id: int,
