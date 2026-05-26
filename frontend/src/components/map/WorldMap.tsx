@@ -1,8 +1,8 @@
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RISK_LEVELS } from "../../constants";
-import { ALL_ISO3, ECHARTS_COUNTRY_NAMES, mockRiskScore } from "../../lib/mockRisk";
-import type { DiseaseId } from "../../types/domain";
+import { ECHARTS_COUNTRY_NAMES } from "../../lib/mockRisk";
+import type { RiskEntry } from "../../types/api";
 
 let mapRegistered = false;
 
@@ -19,6 +19,7 @@ interface MapDataItem {
   name: string;
   value: number;
   risk: keyof typeof RISK_LEVELS;
+  itemStyle: { areaColor: string };
 }
 
 function buildOption(data: MapDataItem[]) {
@@ -35,12 +36,6 @@ function buildOption(data: MapDataItem[]) {
         const badge = `<span style="display:inline-block;margin-right:6px;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:3px;background:${RISK_LEVELS[r].color};color:white;">${RISK_LEVELS[r].label}</span>`;
         return `<b>${p.name}</b><br/><br/>${badge} <span style="font-weight:bold;font-size:14px;">${p.value}</span> / 100`;
       },
-    },
-    visualMap: {
-      min: 0,
-      max: 100,
-      inRange: { color: ["#2a3040", "#22c55e", "#f59e0b", "#ef4444", "#dc2626"] },
-      show: false,
     },
     series: [
       {
@@ -60,30 +55,37 @@ function buildOption(data: MapDataItem[]) {
 }
 
 interface Props {
-  disease: DiseaseId;
-  week: number;
+  entries: RiskEntry[];
   onCountrySelect: (echartName: string) => void;
 }
 
-export default function WorldMap({ disease, week, onCountrySelect }: Props) {
+export default function WorldMap({ entries, onCountrySelect }: Props) {
   const elRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const [ready, setReady] = useState(false);
 
   const mapData = useMemo<MapDataItem[]>(() => {
-    return ALL_ISO3.filter((iso3) => ECHARTS_COUNTRY_NAMES[iso3]).map((iso3) => {
-      const p = mockRiskScore(iso3, disease, week);
-      return { name: ECHARTS_COUNTRY_NAMES[iso3], value: p.score, risk: p.risk };
-    });
-  }, [disease, week]);
+    return entries
+      .filter((e) => ECHARTS_COUNTRY_NAMES[e.iso3])
+      .map((e) => ({
+        name: ECHARTS_COUNTRY_NAMES[e.iso3],
+        value: e.score,
+        risk: e.risk,
+        itemStyle: { areaColor: RISK_LEVELS[e.risk].color },
+      }));
+  }, [entries]);
 
-  // Keep a ref so the init effect can read latest mapData without being in its deps
   const mapDataRef = useRef(mapData);
   useEffect(() => {
     mapDataRef.current = mapData;
   });
 
-  // Load GeoJSON once
+  // Stable onCountrySelect via ref — tránh re-init chart khi parent re-render
+  const onSelectRef = useRef(onCountrySelect);
+  useEffect(() => {
+    onSelectRef.current = onCountrySelect;
+  }, [onCountrySelect]);
+
   useEffect(() => {
     let mounted = true;
     ensureWorldMap()
@@ -94,31 +96,56 @@ export default function WorldMap({ disease, week, onCountrySelect }: Props) {
     };
   }, []);
 
-  // Init chart after map is registered
   useEffect(() => {
     if (!ready || !elRef.current) return;
-    const ch = echarts.init(elRef.current);
-    chartRef.current = ch;
+    const el = elRef.current;
 
-    ch.setOption(buildOption(mapDataRef.current));
+    // Đợi container có size hợp lệ trước khi init echarts.
+    // Nếu init với element 0x0, canvas blank và không tự phục hồi khi size đổi.
+    let ch: echarts.ECharts | null = null;
 
-    ch.on("click", (params: { name?: string }) => {
-      if (params.name) onCountrySelect(params.name);
+    const initIfReady = () => {
+      if (ch) return; // đã init
+      const { width, height } = el.getBoundingClientRect();
+      if (width < 1 || height < 1) return;
+      ch = echarts.init(el);
+      chartRef.current = ch;
+      ch.setOption(buildOption(mapDataRef.current));
+      ch.on("click", (params: { name?: string }) => {
+        if (params.name) onSelectRef.current(params.name);
+      });
+    };
+
+    // Try init ngay; nếu container chưa lay out, sẽ skip — ResizeObserver fire khi có size.
+    initIfReady();
+
+    const ro = new ResizeObserver(() => {
+      initIfReady();      // init lần đầu nếu trước đó skip
+      ch?.resize();       // resize nếu đã init
     });
+    ro.observe(el);
 
-    const onResize = () => ch.resize();
-    window.addEventListener("resize", onResize);
+    const onWindowResize = () => ch?.resize();
+    window.addEventListener("resize", onWindowResize);
 
     return () => {
-      window.removeEventListener("resize", onResize);
-      ch.dispose();
+      window.removeEventListener("resize", onWindowResize);
+      ro.disconnect();
+      ch?.dispose();
       chartRef.current = null;
     };
-  }, [ready, onCountrySelect]);
+  }, [ready]);
 
-  // Update data when disease/week changes (chart already initialized)
   useEffect(() => {
-    chartRef.current?.setOption({ series: [{ data: mapData }] }, { replaceMerge: ["series"] });
+    chartRef.current?.setOption({
+      series: [
+        {
+          type: "map",
+          map: "world",
+          data: mapData,
+        },
+      ],
+    });
   }, [mapData]);
 
   return (
@@ -128,7 +155,7 @@ export default function WorldMap({ disease, week, onCountrySelect }: Props) {
           Đang tải bản đồ thế giới…
         </div>
       )}
-      <div ref={elRef} className="w-full h-full" />
+      <div ref={elRef} className="absolute inset-0" />
     </div>
   );
 }

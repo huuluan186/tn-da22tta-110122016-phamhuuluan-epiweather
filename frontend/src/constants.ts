@@ -6,26 +6,25 @@ export const DISEASES: DiseaseDef[] = [
 ];
 
 export const RISK_LEVELS: Record<RiskLevel, { label: string; color: string }> = {
-  none: { label: "No data", color: "#2a3040" },
-  low: { label: "LOW", color: "#22c55e" },
-  medium: { label: "MEDIUM", color: "#f59e0b" },
-  high: { label: "HIGH", color: "#ef4444" },
-  critical: { label: "CRITICAL", color: "#dc2626" },
+  none: { label: "Không có dữ liệu", color: "#2a3040" },
+  low: { label: "THẤP", color: "#22c55e" },
+  medium: { label: "TRUNG BÌNH", color: "#f59e0b" },
+  high: { label: "CAO", color: "#ef4444" },
 };
 
 export const RISK_ORDER: Record<RiskLevel, number> = {
-  critical: 4,
   high: 3,
   medium: 2,
   low: 1,
   none: 0,
 };
 
+// WHO region codes — khớp với cột countries.who_region trong DB (AFR/AMR/EMR/EUR/SEAR/WPR)
 export const WHO_REGIONS = [
-  { id: "AFRO", label: "African Region (AFRO)" },
-  { id: "AMRO", label: "Americas (PAHO/AMRO)" },
-  { id: "EMRO", label: "Eastern Mediterranean (EMRO)" },
-  { id: "EURO", label: "European Region (EURO)" },
-  { id: "SEARO", label: "South-East Asia (SEARO)" },
-  { id: "WPRO", label: "Western Pacific (WPRO)" },
+  { id: "AFR",  label: "Châu Phi (AFR)" },
+  { id: "AMR",  label: "Châu Mỹ (PAHO/AMR)" },
+  { id: "EMR",  label: "Đông Địa Trung Hải (EMR)" },
+  { id: "EUR",  label: "Châu Âu (EUR)" },
+  { id: "SEAR", label: "Đông Nam Á (SEAR)" },
+  { id: "WPR",  label: "Tây Thái Bình Dương (WPR)" },
 ] as const;

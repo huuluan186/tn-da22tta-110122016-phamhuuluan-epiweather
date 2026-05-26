@@ -1,31 +1,72 @@
 import { useMemo } from "react";
 import { WHO_REGIONS } from "../../constants";
-import { ALL_ISO3, getCountryRegion, mockRiskScore } from "../../lib/mockRisk";
-import type { DiseaseId } from "../../types/domain";
+import type { RiskEntry } from "../../types/api";
+
+const RISK_PILLS = [
+  { id: "high",   label: "Cao",    activeClass: "bg-[var(--color-risk-high)]/15 border-[var(--color-risk-high)]/50 text-[var(--color-risk-high)]" },
+  { id: "medium", label: "TB",     activeClass: "bg-amber-500/15 border-amber-500/50 text-amber-300" },
+  { id: "low",    label: "Thấp",   activeClass: "bg-emerald-500/15 border-emerald-500/50 text-emerald-300" },
+] as const;
 
 interface Props {
   value: string[];
   onToggle: (id: string) => void;
-  disease: DiseaseId;
-  week: number;
+  entries: RiskEntry[];
+  riskLevels: string[];
+  onToggleRiskLevel: (level: string) => void;
 }
 
-export default function RegionFilter({ value, onToggle, disease, week }: Props) {
+export default function RegionFilter({
+  value,
+  onToggle,
+  entries,
+  riskLevels,
+  onToggleRiskLevel,
+}: Props) {
+  // Không chọn gì hoặc chọn hết = tổng số quốc gia có báo cáo; chọn 1-2 level = tổng của các level đó
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
     WHO_REGIONS.forEach((r) => (out[r.id] = 0));
-    ALL_ISO3.forEach((iso3) => {
-      const r = mockRiskScore(iso3, disease, week);
-      const region = getCountryRegion(iso3);
-      if (r.risk === "high" || r.risk === "critical") {
-        out[region] = (out[region] ?? 0) + 1;
+    entries.forEach((e) => {
+      if (!e.whoRegion || out[e.whoRegion] === undefined) return;
+      if (riskLevels.length === 0 || riskLevels.includes(e.risk ?? "")) {
+        out[e.whoRegion]++;
       }
     });
     return out;
-  }, [disease, week]);
+  }, [entries, riskLevels]);
 
   return (
     <div className="flex flex-col gap-0.5">
+      {/* Risk level multi-select pills */}
+      <div className="flex items-center gap-1 mb-2 flex-wrap">
+        {RISK_PILLS.map((pill) => {
+          const active = riskLevels.includes(pill.id);
+          return (
+            <button
+              key={pill.id}
+              onClick={() => onToggleRiskLevel(pill.id)}
+              className={`text-[10px] px-2 py-0.5 rounded border font-semibold transition-colors ${
+                active
+                  ? pill.activeClass
+                  : "bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-text-3)] hover:text-[var(--color-text-1)]"
+              }`}
+              title={active ? `Bỏ lọc mức ${pill.label}` : `Lọc mức ${pill.label}`}
+            >
+              {active ? "● " : "○ "}{pill.label}
+            </button>
+          );
+        })}
+        {riskLevels.length > 0 && (
+          <button
+            onClick={() => riskLevels.forEach((l) => onToggleRiskLevel(l))}
+            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-3)] hover:text-[var(--color-text-1)] transition-colors"
+            title="Xóa tất cả bộ lọc mức độ"
+          >
+            ✕
+          </button>
+        )}
+      </div>
       {WHO_REGIONS.map((r) => {
         const on = value.includes(r.id);
         return (
@@ -52,7 +93,10 @@ export default function RegionFilter({ value, onToggle, disease, week }: Props) 
               )}
             </div>
             <span>{r.label}</span>
-            <span className="ml-auto text-[11px] text-[var(--color-text-3)] tabular-nums">
+            <span
+              className="ml-auto text-[11px] tabular-nums text-[var(--color-text-2)]"
+              title={`${counts[r.id] ?? 0} quốc gia trong vùng ${r.label}`}
+            >
               {counts[r.id] ?? 0}
             </span>
           </div>

@@ -1,14 +1,336 @@
+import * as echarts from "echarts";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import ForecastChart from "../components/detail/ForecastChart";
+import { DISEASES, RISK_LEVELS } from "../constants";
+import { useForecast, useNowcast } from "../hooks/useForecast";
+import { useHistory, usePrediction } from "../hooks/usePrediction";
+import { ECHARTS_COUNTRY_NAMES } from "../lib/mockRisk";
+import { useUIStore } from "../store/uiStore";
+import type { HistoryPoint } from "../types/api";
+import type { DiseaseId, RiskLevel } from "../types/domain";
+
+// Năm hợp lệ cho từng disease (phải khớp với data trong predictions table)
+const VALID_YEARS: Record<DiseaseId, { min: number; max: number; hint: string }> = {
+  flu:    { min: 2010, max: 2026, hint: "Historical 2010-2019 hoặc Realtime 2026 (W02-W21)" },
+  dengue: { min: 2010, max: 2023, hint: "Historical 2010-2019 hoặc Nowcast 2021-2023 (W01-W36)" },
+};
+
+function toRiskLevel(raw: string | null | undefined): RiskLevel {
+  const normalized = raw?.toLowerCase() ?? "";
+  if (normalized === "high" || normalized === "medium" || normalized === "low") return normalized;
+  return "none";
+}
+
+function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu" | "dengue" }) {
+  const elRef = useRef<HTMLDivElement>(null);
+  const color = disease === "flu" ? "#3b82f6" : "#f59e0b";
+  const series = useMemo(() => {
+    const slice = points.slice(-52);
+    return {
+      labels: slice.map((p) => `W${String(p.iso_week).padStart(2, "0")}/${p.iso_year}`),
+      values: slice.map((p) => p.predicted_cases ?? p.actual_cases ?? null),
+    };
+  }, [points]);
+
+  useEffect(() => {
+    if (!elRef.current) return;
+    const ch = echarts.init(elRef.current);
+    const data = series.values;
+    const weeks = series.labels;
+
+    ch.setOption({
+      backgroundColor: "transparent",
+      grid: { top: 16, right: 16, bottom: 32, left: 48 },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "#1a1f2e",
+        borderColor: "#2a3040",
+        textStyle: { color: "#f1f5f9", fontSize: 11 },
+        formatter: (p: { name: string; value: number }[]) =>
+          `${p[0].name}: <b>${p[0].value ?? "—"}</b> cases`,
+      },
+      xAxis: {
+        type: "category",
+        data: weeks,
+        axisLine: { lineStyle: { color: "#2a3040" } },
+        axisLabel: { color: "#64748b", fontSize: 10, interval: 7 },
+        splitLine: { show: false },
+      },
+      yAxis: {
+        type: "value",
+        min: 0,
+        axisLine: { show: false },
+        axisLabel: { color: "#64748b", fontSize: 10 },
+        splitLine: { lineStyle: { color: "#1e2535", type: "dashed" } },
+      },
+      series: [{
+        type: "line",
+        data,
+        smooth: true,
+        symbol: "none",
+        lineStyle: { color, width: 2 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: color.replace(")", ",0.25)").replace("rgb", "rgba") },
+            { offset: 1, color: "rgba(0,0,0,0)" },
+          ]),
+        },
+      }],
+    });
+
+    const onResize = () => ch.resize();
+    window.addEventListener("resize", onResize);
+    return () => { window.removeEventListener("resize", onResize); ch.dispose(); };
+  }, [series, disease, color]);
+
+  return <div ref={elRef} className="w-full h-[220px]" />;
+}
+
 export default function DiseaseDetailPage() {
-  return (
-    <div className="flex-1 grid place-items-center bg-[var(--color-bg)] p-10 overflow-y-auto">
-      <div className="max-w-[580px] w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-10">
-        <h1 className="mb-3 text-2xl text-[var(--color-text-1)] font-semibold">
-          Country Detail View
-        </h1>
-        <p className="text-[var(--color-text-2)] leading-relaxed">
-          Chọn một quốc gia trên bản đồ hoặc điều hướng từ sidebar bên trái để xem chi tiết
-          trend, weather drivers và lịch sử cảnh báo.
+  const { iso3 } = useParams<{ iso3: string }>();
+  const navigate = useNavigate();
+  const { disease, year: uiYear, week: uiWeek } = useUIStore();
+
+  // Picker để query năm lịch sử — null = dùng nowcast
+  const [pickerYear, setPickerYear] = useState<number | null>(null);
+  const [pickerWeek, setPickerWeek] = useState<number | null>(null);
+  const isHistoricalMode = pickerYear !== null && pickerWeek !== null;
+
+  // Nowcast: tuần mới nhất có data realtime
+  const {
+    forecast: nowcast,
+    isLoading: nowcastLoading,
+    isError: nowcastError,
+  } = useNowcast(disease, iso3);
+
+  // Historical: dùng picker năm/tuần khi user chọn
+  const {
+    forecast: historicalForecast,
+    isLoading: historicalLoading,
+    isError: historicalError,
+  } = useForecast(disease, iso3, pickerYear ?? 2019, pickerWeek ?? 1);
+
+  const forecast = isHistoricalMode ? historicalForecast : nowcast;
+  const forecastLoading = isHistoricalMode ? historicalLoading : nowcastLoading;
+  const forecastError = isHistoricalMode ? historicalError : (nowcastError && !historicalForecast);
+  const isRealtime = !isHistoricalMode && Boolean(nowcast);
+
+  // week/year dùng cho display (header + prediction)
+  const displayWeek = forecast?.as_of_iso_week ?? pickerWeek ?? uiWeek;
+  const displayYear = forecast?.as_of_iso_year ?? pickerYear ?? uiYear;
+
+  // input buffer cho picker (string để user gõ tự do)
+  const [inputYear, setInputYear] = useState("");
+  const [inputWeek, setInputWeek] = useState("");
+
+  const validRange = VALID_YEARS[disease];
+  const applyPicker = () => {
+    const y = parseInt(inputYear, 10);
+    const w = parseInt(inputWeek, 10);
+    if (y >= validRange.min && y <= validRange.max && w >= 1 && w <= 53) {
+      setPickerYear(y);
+      setPickerWeek(w);
+    }
+  };
+
+  const resetPicker = () => {
+    setPickerYear(null);
+    setPickerWeek(null);
+    setInputYear("");
+    setInputWeek("");
+  };
+
+  if (!iso3) {
+    return (
+      <div className="flex-1 grid place-items-center bg-[var(--color-bg)]">
+        <p className="text-[var(--color-text-3)] text-sm">
+          Chọn một quốc gia trên bản đồ để xem chi tiết.
         </p>
+      </div>
+    );
+  }
+
+  const countryName = ECHARTS_COUNTRY_NAMES[iso3] ?? iso3;
+  const d = DISEASES.find((x) => x.id === disease)!;
+  const { prediction, isLoading: predictionLoading } = usePrediction(
+    disease,
+    iso3,
+    displayYear,
+    displayWeek,
+  );
+  const { history, isLoading: historyLoading, isError: historyError } = useHistory(
+    disease,
+    iso3,
+    2010,
+    2019,
+  );
+  const riskLevel = toRiskLevel(prediction?.risk_level);
+  const riskDef = RISK_LEVELS[riskLevel];
+  const predictedCases = prediction?.predicted_cases ?? null;
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-[var(--color-bg)] p-6">
+      <div className="max-w-[860px] mx-auto flex flex-col gap-5">
+
+        <button
+          onClick={() => navigate("/")}
+          className="self-start text-[var(--color-text-3)] hover:text-[var(--color-text-1)] text-xs"
+        >
+          ← Back to map
+        </button>
+
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-[var(--color-text-1)]">{countryName}</h1>
+            <p className="mt-1 text-sm text-[var(--color-text-3)]">
+              {d.label} · W{String(displayWeek).padStart(2, "0")} · {displayYear}
+            </p>
+          </div>
+          <div
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white"
+            style={{ backgroundColor: riskDef.color }}
+          >
+            {predictionLoading ? "Đang tải…" : `${riskDef.label}`}
+          </div>
+        </div>
+
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+          {/* Header: title + as-of label + historical picker */}
+          <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+            <div>
+              <div className="text-[13px] font-semibold text-[var(--color-text-1)]">
+                4-week Forecast · {d.label}
+                {isRealtime && (
+                  <span className="ml-2 text-[10px] font-normal text-emerald-400">● realtime</span>
+                )}
+                {isHistoricalMode && (
+                  <span className="ml-2 text-[10px] font-normal text-amber-400">● historical</span>
+                )}
+              </div>
+              {forecast && (
+                <div className="mt-0.5 text-[11px] text-[var(--color-text-3)]">
+                  As of W{String(forecast.as_of_iso_week).padStart(2, "0")}/{forecast.as_of_iso_year}
+                  {" "}→ W{String(forecast.points[0]?.target_iso_week).padStart(2, "0")}–W{String(forecast.points[3]?.target_iso_week).padStart(2, "0")}/{forecast.points[3]?.target_iso_year}
+                </div>
+              )}
+            </div>
+
+            {/* Historical picker */}
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <input
+                  type="number"
+                  placeholder="Year"
+                  min={validRange.min} max={validRange.max}
+                  value={inputYear}
+                  onChange={(e) => setInputYear(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyPicker()}
+                  className="w-[62px] bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded px-2 py-1 text-[var(--color-text-1)] text-center [appearance:textfield] outline-none"
+                />
+                <span className="text-[var(--color-text-3)]">W</span>
+                <input
+                  type="number"
+                  placeholder="Wk"
+                  min={1} max={53}
+                  value={inputWeek}
+                  onChange={(e) => setInputWeek(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyPicker()}
+                  className="w-[48px] bg-[var(--color-surface-3)] border border-[var(--color-border)] rounded px-2 py-1 text-[var(--color-text-1)] text-center [appearance:textfield] outline-none"
+                />
+                <button
+                  onClick={applyPicker}
+                  className="px-2 py-1 rounded bg-[var(--color-primary)] text-white hover:opacity-80 transition-opacity"
+                >
+                  Go
+                </button>
+                {isHistoricalMode && (
+                  <button
+                    onClick={resetPicker}
+                    className="px-2 py-1 rounded bg-[var(--color-surface-3)] text-[var(--color-text-3)] hover:text-[var(--color-text-1)] transition-colors"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <div className="text-[10px] text-[var(--color-text-3)]">
+                {validRange.hint}
+              </div>
+            </div>
+          </div>
+
+          {/* Model coverage info — thông tin validation của model cho năm dự báo */}
+          {!forecastLoading && forecast?.data_coverage?.warning && (
+            <div className="mb-3 px-3 py-2 rounded-lg bg-sky-950/40 border border-sky-700/50 text-sky-300 text-[11px] leading-relaxed">
+              ℹ {forecast.data_coverage.warning}
+            </div>
+          )}
+
+          {forecastLoading && (
+            <div className="h-[260px] grid place-items-center text-[var(--color-text-3)] text-xs">
+              Loading forecast…
+            </div>
+          )}
+          {!forecastLoading && forecastError && (
+            <div className="h-[260px] grid place-items-center text-center text-amber-400 text-xs gap-1">
+              <div>Không có feature snapshot cho W{String(pickerWeek ?? displayWeek).padStart(2, "0")}/{pickerYear ?? displayYear}</div>
+              <div className="text-[var(--color-text-3)]">
+                {isHistoricalMode ? "Thử năm khác (2010–2019 hoặc 2026)" : "Cần sync realtime data trước"}
+              </div>
+            </div>
+          )}
+          {!forecastLoading && !forecastError && forecast && forecast.points.length > 0 && (
+            <ForecastChart points={forecast.points} disease={disease} />
+          )}
+        </div>
+
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+          <div className="text-[13px] font-semibold text-[var(--color-text-1)] mb-4">
+            52-week Trend · {d.label}
+          </div>
+          {historyLoading && (
+            <div className="h-[220px] grid place-items-center text-[var(--color-text-3)] text-xs">
+              Loading history…
+            </div>
+          )}
+          {!historyLoading && historyError && (
+            <div className="h-[220px] grid place-items-center text-[var(--color-text-3)] text-xs">
+              Chưa có dữ liệu lịch sử từ API.
+            </div>
+          )}
+          {!historyLoading && !historyError && history && history.points.length > 0 && (
+            <TrendChart points={history.points} disease={disease} />
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            {
+              label: "Predicted Cases",
+              value: predictedCases !== null ? Math.round(predictedCases).toLocaleString() : "—",
+              sub: "",
+            },
+            { label: "Risk Level", value: riskDef.label, sub: "" },
+            { label: "Disease", value: d.short, sub: d.label },
+          ].map((s) => (
+            <div key={s.label} className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4">
+              <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">{s.label}</div>
+              <div className="text-2xl font-semibold text-[var(--color-text-1)]">{s.value}</div>
+              {s.sub && <div className="text-xs text-[var(--color-text-3)] mt-0.5">{s.sub}</div>}
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+          <div className="text-[13px] font-semibold text-[var(--color-text-1)] mb-4">
+            Top Climate Drivers
+            <span className="ml-2 text-[11px] font-normal text-[var(--color-text-3)]">(feature importance)</span>
+          </div>
+          <div className="h-[120px] grid place-items-center text-[var(--color-text-3)] text-xs">
+            Chưa có dữ liệu drivers từ API.
+          </div>
+        </div>
+
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 export type DiseaseId = "flu" | "dengue";
-export type RiskLevel = "none" | "low" | "medium" | "high" | "critical";
+export type RiskLevel = "none" | "low" | "medium" | "high";
 
 export interface DiseaseDef {
   id: DiseaseId;

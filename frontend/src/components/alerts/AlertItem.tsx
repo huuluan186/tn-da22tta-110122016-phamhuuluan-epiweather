@@ -1,7 +1,5 @@
 import { DISEASES, RISK_LEVELS } from "../../constants";
-import { mockRiskScore } from "../../lib/mockRisk";
 import type { DiseaseId } from "../../types/domain";
-import Sparkline from "./Sparkline";
 
 export interface AlertCountry {
   iso3: string;
@@ -10,21 +8,17 @@ export interface AlertCountry {
   region: string;
   disease: DiseaseId;
   timeAgo: string;
+  risk: keyof typeof RISK_LEVELS;
+  score: number;
+  predictedCases: number | null;
 }
 
 interface Props {
   item: AlertCountry;
-  week: number;
 }
 
-export default function AlertItem({ item, week }: Props) {
-  const p = mockRiskScore(item.iso3, item.disease, week);
-  const pp = mockRiskScore(item.iso3, item.disease, week - 1);
-  const delta = p.score - pp.score;
+export default function AlertItem({ item }: Props) {
   const d = DISEASES.find((x) => x.id === item.disease)!;
-  const trend = Array.from({ length: 8 }, (_, i) =>
-    mockRiskScore(item.iso3, item.disease, week - 7 + i).score,
-  );
 
   return (
     <div className="px-4 py-3 border-b border-[var(--color-border-soft)] cursor-pointer hover:bg-[var(--color-surface-2)]">
@@ -36,7 +30,9 @@ export default function AlertItem({ item, week }: Props) {
           <div className="font-semibold text-[13px]">{item.name}</div>
           <div className="text-[11px] text-[var(--color-text-3)]">{item.region}</div>
         </div>
-        <div className="ml-auto text-[10px] text-[var(--color-text-3)]">{item.timeAgo}</div>
+        {item.timeAgo && (
+          <div className="ml-auto text-[10px] text-[var(--color-text-3)]">{item.timeAgo}</div>
+        )}
       </div>
 
       <div className="mt-2 flex items-center gap-2">
@@ -49,24 +45,20 @@ export default function AlertItem({ item, week }: Props) {
         </span>
         <span
           className="text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] text-white"
-          style={{ background: RISK_LEVELS[p.risk].color }}
+          style={{ background: RISK_LEVELS[item.risk].color }}
         >
-          {RISK_LEVELS[p.risk].label}
+          {RISK_LEVELS[item.risk].label}
         </span>
-        <Sparkline data={trend} color={d.color} />
       </div>
 
       <div className="mt-1.5 flex justify-between text-[11px] text-[var(--color-text-2)] tabular-nums">
-        <span>
-          Score <strong className="text-[var(--color-text-1)]">{p.score}</strong>/100
+        <span title="Điểm rủi ro 0-100, tính từ xác suất P(High) của model phân loại">
+          Điểm <strong className="text-[var(--color-text-1)]">{item.score}</strong>/100
         </span>
-        <span
-          className={`font-semibold ${
-            delta > 0 ? "text-[var(--color-risk-high)]" : "text-[var(--color-risk-low)]"
-          }`}
-        >
-          {delta >= 0 ? "+" : ""}
-          {delta} vs last week
+        <span title="Số ca dự báo cho tuần này (từ model hồi quy)">
+          {item.predictedCases !== null
+            ? `Dự báo ${Math.round(item.predictedCases).toLocaleString()} ca`
+            : "Dự báo —"}
         </span>
       </div>
     </div>

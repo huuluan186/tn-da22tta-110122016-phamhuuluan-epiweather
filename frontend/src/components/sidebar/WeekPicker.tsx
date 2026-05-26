@@ -1,44 +1,111 @@
 import Icon from "../common/Icon";
+import type { DiseaseId } from "../../types/domain";
 
 interface Props {
+  disease: DiseaseId;
   year: number;
   week: number;
   onYearChange: (y: number) => void;
   onWeekChange: (w: number) => void;
 }
 
-const YEARS = Array.from({ length: 17 }, (_, i) => 2010 + i);
+// Cấu hình per-disease: năm hợp lệ + week range
+const DISEASE_CONFIG: Record<
+  DiseaseId,
+  {
+    historical: number[];
+    realtime: { year: number; label: string }[];
+    weekRange: Record<number, { min: number; max: number }>;
+    defaultYear: number;
+  }
+> = {
+  flu: {
+    historical: Array.from({ length: 10 }, (_, i) => 2010 + i), // 2010-2019
+    realtime: [{ year: 2026, label: "2026 (W02-W21)" }],
+    weekRange: { 2026: { min: 2, max: 21 } },
+    defaultYear: 2026,
+  },
+  dengue: {
+    historical: Array.from({ length: 10 }, (_, i) => 2010 + i), // 2010-2019
+    realtime: [
+      { year: 2023, label: "2023 (W01-W36)" },
+      { year: 2022, label: "2022" },
+      { year: 2021, label: "2021" },
+    ],
+    weekRange: { 2023: { min: 1, max: 36 } },
+    defaultYear: 2023,
+  },
+};
 
-export default function WeekPicker({ year, week, onYearChange, onWeekChange }: Props) {
-  const pct = (week / 52) * 100;
+function getRange(disease: DiseaseId, y: number) {
+  return DISEASE_CONFIG[disease].weekRange[y] ?? { min: 1, max: 52 };
+}
+
+function isRealtime(disease: DiseaseId, y: number) {
+  return DISEASE_CONFIG[disease].realtime.some((r) => r.year === y);
+}
+
+function getHintText(disease: DiseaseId, y: number): string {
+  if (!isRealtime(disease, y)) return "Historical: dữ liệu training 2010-2019";
+  if (disease === "flu") return "Realtime: 2026-W02 đến W21 · dự đoán từ model ML";
+  if (y === 2023) return "Realtime: 2023-W01 đến W36 · OpenDengue + Open-Meteo";
+  return `Realtime: ${y} · dự đoán từ model ML`;
+}
+
+export default function WeekPicker({ disease, year, week, onYearChange, onWeekChange }: Props) {
+  const cfg = DISEASE_CONFIG[disease];
+  const allValid = [...cfg.historical, ...cfg.realtime.map((r) => r.year)];
+
+  const safeYear = allValid.includes(year) ? year : cfg.defaultYear;
+  const { min: minWeek, max: maxWeek } = getRange(disease, safeYear);
+  const safeWeek = Math.min(Math.max(week, minWeek), maxWeek);
+  const pct = maxWeek > minWeek ? ((safeWeek - minWeek) / (maxWeek - minWeek)) * 100 : 0;
 
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <select
-          value={year}
-          onChange={(e) => onYearChange(Number(e.target.value))}
+          value={safeYear}
+          onChange={(e) => {
+            const newYear = Number(e.target.value);
+            onYearChange(newYear);
+            const { min, max } = getRange(disease, newYear);
+            const clampedWeek = Math.min(Math.max(week, min), max);
+            if (clampedWeek !== week) onWeekChange(clampedWeek);
+          }}
           className="flex-1 h-[30px] bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-1)] text-xs font-semibold px-2 text-center cursor-pointer focus:outline-none focus:border-[var(--color-text-3)]"
         >
-          {YEARS.map((y) => (
-            <option key={y} value={y}>{y}</option>
-          ))}
+          <optgroup label="Realtime">
+            {cfg.realtime.map((r) => (
+              <option key={r.year} value={r.year}>{r.label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="Historical (training data)">
+            {cfg.historical.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </optgroup>
         </select>
+      </div>
+      <div className="mb-2 text-[10px] text-[var(--color-text-3)] leading-tight">
+        {getHintText(disease, safeYear)}
       </div>
 
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onWeekChange(Math.max(1, week - 1))}
-          className="w-8 h-8 grid place-items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-3)]"
+          onClick={() => onWeekChange(Math.max(minWeek, safeWeek - 1))}
+          disabled={safeWeek <= minWeek}
+          className="w-8 h-8 grid place-items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-3)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Icon name="chevron-left" size={14} />
         </button>
         <div className="flex-1 h-8 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md flex items-center justify-center text-xs font-semibold">
-          W{String(week).padStart(2, "0")}
+          W{String(safeWeek).padStart(2, "0")}
         </div>
         <button
-          onClick={() => onWeekChange(Math.min(52, week + 1))}
-          className="w-8 h-8 grid place-items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-3)]"
+          onClick={() => onWeekChange(Math.min(maxWeek, safeWeek + 1))}
+          disabled={safeWeek >= maxWeek}
+          className="w-8 h-8 grid place-items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-3)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Icon name="chevron-right" size={14} />
         </button>
@@ -51,9 +118,9 @@ export default function WeekPicker({ year, week, onYearChange, onWeekChange }: P
         />
       </div>
       <div className="mt-1 flex justify-between text-[10px] text-[var(--color-text-3)] tabular-nums">
-        <span>W01</span>
-        <span>W{String(week).padStart(2, "0")} / 52</span>
-        <span>W52</span>
+        <span>W{String(minWeek).padStart(2, "0")}</span>
+        <span>W{String(safeWeek).padStart(2, "0")} / W{String(maxWeek).padStart(2, "0")}</span>
+        <span>W{String(maxWeek).padStart(2, "0")}</span>
       </div>
     </div>
   );
