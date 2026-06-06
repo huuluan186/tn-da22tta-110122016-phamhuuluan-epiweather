@@ -26,16 +26,59 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      seed:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql://${DB_USER:-epiweather}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-kltn_epiweather}
       MODELS_DIR: /app/ml_models
       DEBUG: ${DEBUG:-false}
       APP_VERSION: ${APP_VERSION:-1.0.0}
       CORS_ORIGINS: '["http://localhost:3000","http://localhost:5173"]'
+      ENABLE_API_SCHEDULER: ${ENABLE_API_SCHEDULER:-false}
     volumes:
       - ./ml_models:/app/ml_models:ro
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      start_period: 180s
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-epiweather}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-kltn_epiweather}
+    volumes:
+      - ./data:/app/data:ro
+      - ./ml_models:/app/ml_models:ro
+    command: ["python", "scripts/bootstrap_db.py"]
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-epiweather}:${DB_PASSWORD:-changeme}@db:5432/${DB_NAME:-kltn_epiweather}
+      MODELS_DIR: /app/ml_models
+      DEBUG: ${DEBUG:-false}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+    volumes:
+      - ./ml_models:/app/ml_models:ro
+      - ./data:/app/data:ro
 
   frontend:
     build:
@@ -43,7 +86,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "3000:80"
 
