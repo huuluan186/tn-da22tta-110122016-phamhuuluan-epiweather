@@ -20,7 +20,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting EpiWeather API v{settings.APP_VERSION} (DEBUG={settings.DEBUG})")
     logger.info(f"Loading models from {settings.MODELS_DIR}")
     load_models(settings.MODELS_DIR)
-    init_scheduler()
+    if settings.ENABLE_API_SCHEDULER:
+        init_scheduler()
+    else:
+        logger.info("API scheduler disabled; scheduled pipeline should run in scheduler service")
     logger.info("Startup complete")
     yield
     shutdown_scheduler()

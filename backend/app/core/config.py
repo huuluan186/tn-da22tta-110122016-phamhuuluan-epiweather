@@ -19,10 +19,22 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     APP_VERSION: str = "1.0.0"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    ENABLE_API_SCHEDULER: bool = True
 
     # Weather provider keys
     OWM_API_KEY: str = ""  # OpenWeatherMap — fallback provider (Phase 8 MLOps)
     # Open-Meteo Archive API không cần key, dùng làm primary provider (Phase A-1)
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, v):
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in {"release", "prod", "production"}:
+                return False
+            if normalized in {"debug", "dev", "development"}:
+                return True
+        return v
 
     @field_validator("MODELS_DIR", mode="before")
     @classmethod

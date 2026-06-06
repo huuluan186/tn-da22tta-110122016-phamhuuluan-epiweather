@@ -39,6 +39,15 @@ def get_prediction(
     week: int,
 ) -> PredictionPoint:
     disease = resolve_disease(db, disease_code)
+    if feature_lookup.is_after_latest_valid_week(disease.id, year, week):
+        latest_year, latest_week = feature_lookup.get_latest_valid_week(disease.id) or (None, None)
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"{disease_code} chỉ có dữ liệu hợp lệ đến "
+                f"{latest_year}-W{latest_week:02d} trong dataset hiện có."
+            ),
+        )
     row = prediction_crud.get_one(db, disease.id, iso3.upper(), year, week)
     if not row:
         raise HTTPException(status_code=404, detail="Không có dự báo cho tuần này")
@@ -71,6 +80,15 @@ def get_forecast(
     """
     disease = resolve_disease(db, disease_code)
     iso3_upper = iso3.upper()
+    if feature_lookup.is_after_latest_valid_week(disease.id, as_of_year, as_of_week):
+        latest_year, latest_week = feature_lookup.get_latest_valid_week(disease.id) or (None, None)
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"{disease_code} chỉ có dữ liệu hợp lệ đến "
+                f"{latest_year}-W{latest_week:02d} trong dataset hiện có."
+            ),
+        )
 
     features = feature_lookup.get_features(
         db, disease.id, iso3_upper, as_of_year, as_of_week

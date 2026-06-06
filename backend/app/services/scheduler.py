@@ -68,13 +68,16 @@ def job_sync_weather():
 
 
 def job_build_features():
-    """Rebuild flu + dengue feature snapshots cho năm hiện tại (chạy sau sync)."""
+    """Rebuild flu feature snapshots cho năm hiện tại (chạy sau sync).
+
+    Dengue không có nguồn cập nhật hằng tuần kiểu FluNet. Không build dengue
+    theo năm hiện tại vì sẽ sinh placeholder sau cutoff OpenDengue 2023-W36.
+    Khi có batch OpenDengue mới, chạy riêng build_features_dengue_nowcast.
+    """
     import datetime
     cur_year = str(datetime.date.today().year)
-    r_flu    = _run_script("feature_builder.py", ["--disease", "flu",    "--from-year", cur_year])
-    r_dengue = _run_script("feature_builder.py", ["--disease", "dengue", "--from-year", cur_year])
-    rc = max(r_flu["returncode"], r_dengue["returncode"])
-    return {"returncode": rc, "flu": r_flu, "dengue": r_dengue}
+    r_flu = _run_script("feature_builder.py", ["--disease", "flu", "--from-year", cur_year])
+    return {"returncode": r_flu["returncode"], "flu": r_flu}
 
 
 def job_build_features_dengue_nowcast():

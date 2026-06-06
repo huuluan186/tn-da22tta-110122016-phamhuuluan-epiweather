@@ -23,8 +23,6 @@ class RiskMapItem(BaseModel):
     predicted_cases: float | None
     risk_level: str | None
     risk_probability: float | None  # P(High) 0..1 từ classifier — FE × 100 = severity score
-    risk_q33: float | None
-    risk_q67: float | None
 
 
 class RiskMapResponse(BaseModel):

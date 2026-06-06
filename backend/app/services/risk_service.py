@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from ..crud import diseases as disease_crud
 from ..crud import predictions as prediction_crud
 from ..schemas.prediction import RiskMapItem, RiskMapResponse
+from . import feature_lookup
 
 VALID_DISEASES = {"flu", "dengue"}
 
@@ -27,6 +28,15 @@ def get_risk_map(
     week: int,
 ) -> RiskMapResponse:
     disease = _resolve(db, disease_code)
+    if feature_lookup.is_after_latest_valid_week(disease.id, year, week):
+        latest_year, latest_week = feature_lookup.get_latest_valid_week(disease.id) or (None, None)
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"{disease_code} chỉ có dữ liệu hợp lệ đến "
+                f"{latest_year}-W{latest_week:02d} trong dataset hiện có."
+            ),
+        )
     rows = prediction_crud.list_for_map(db, disease.id, year, week)
 
     items = [
@@ -39,8 +49,6 @@ def get_risk_map(
             predicted_cases=p.predicted_cases,
             risk_level=p.risk_level,
             risk_probability=p.risk_probability,
-            risk_q33=p.risk_q33,
-            risk_q67=p.risk_q67,
         )
         for p in rows
     ]
@@ -57,7 +65,14 @@ def get_risk_map(
 def get_latest_risk_map(db: Session, disease_code: str) -> RiskMapResponse:
     """Risk map cho tuần mới nhất có data — dùng cho map mặc định khi load."""
     disease = _resolve(db, disease_code)
-    latest = prediction_crud.get_latest_week(db, disease.id)
+    latest_observed = feature_lookup.get_last_observed_week(db, disease.id)
+    max_year, max_week = latest_observed if latest_observed else (None, None)
+    latest = prediction_crud.get_latest_week(
+        db,
+        disease.id,
+        max_year=max_year,
+        max_week=max_week,
+    )
     if latest is None:
         raise HTTPException(
             status_code=404,

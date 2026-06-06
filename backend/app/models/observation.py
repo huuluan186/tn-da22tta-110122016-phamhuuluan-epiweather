@@ -54,7 +54,7 @@ class FeatureSnapshot(Base):
     iso_year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     iso_week: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     feature_version: Mapped[str] = mapped_column(String(10), primary_key=True, default="v1")
-    features: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    features: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
     created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

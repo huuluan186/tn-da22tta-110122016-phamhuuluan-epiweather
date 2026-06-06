@@ -6,18 +6,81 @@ Phase A-2 (sau): sẽ thay bằng feature_builder dynamic — query disease_case
                   → compute features runtime cho realtime data.
 """
 
-from sqlalchemy import distinct, func
+from sqlalchemy import and_, distinct, func, or_
 from sqlalchemy.orm import Session
 
 from ..models import Country, DiseaseCase, FeatureSnapshot
 
 TRAINING_YEARS = set(range(2010, 2020))  # 2010-2019 — training window cả hai bệnh
 
-# Dengue có thêm "nowcast" range: OpenDengue v1.3 batch-released tới 2023-W36.
-# Đây KHÔNG phải extrapolation vô căn cứ — có ground truth từ OpenDengue,
-# chỉ không thể validate real-time vì nguồn batch.
+# OpenDengue v1.3 trong dataset hiện có chỉ đủ dữ liệu weekly tới 2023-W36.
+# Các dòng dengue sau mốc này trong DB là dữ liệu sinh thừa/placeholder, không được
+# dùng làm "latest" cho API hoặc dashboard.
 DENGUE_NOWCAST_YEARS = {2021, 2022, 2023}
+DENGUE_LATEST_VALID_WEEK = (2023, 36)
 DENGUE_DISEASE_ID = 2
+
+
+def _has_observed_case_data():
+    return or_(
+        DiseaseCase.raw_count.isnot(None),
+        DiseaseCase.transformed_value.isnot(None),
+    )
+
+
+def get_latest_valid_week(disease_id: int) -> tuple[int, int] | None:
+    if disease_id == DENGUE_DISEASE_ID:
+        return DENGUE_LATEST_VALID_WEEK
+    return None
+
+
+def _not_after_week(model, latest: tuple[int, int] | None):
+    if latest is None:
+        return None
+    max_year, max_week = latest
+    return or_(
+        model.iso_year < max_year,
+        and_(
+            model.iso_year == max_year,
+            model.iso_week <= max_week,
+        ),
+    )
+
+
+def is_after_latest_valid_week(disease_id: int, iso_year: int, iso_week: int) -> bool:
+    latest = get_latest_valid_week(disease_id)
+    if latest is None:
+        return False
+    max_year, max_week = latest
+    return iso_year > max_year or (iso_year == max_year and iso_week > max_week)
+
+
+def get_last_observed_week(
+    db: Session,
+    disease_id: int,
+    iso3: str | None = None,
+) -> tuple[int, int] | None:
+    query = db.query(DiseaseCase.iso_year, DiseaseCase.iso_week).filter(
+        DiseaseCase.disease_id == disease_id,
+        _has_observed_case_data(),
+    )
+    valid_filter = _not_after_week(DiseaseCase, get_latest_valid_week(disease_id))
+    if valid_filter is not None:
+        query = query.filter(valid_filter)
+    if iso3 is not None:
+        query = query.filter(DiseaseCase.iso3 == iso3.upper())
+    row = query.order_by(DiseaseCase.iso_year.desc(), DiseaseCase.iso_week.desc()).first()
+    return (row[0], row[1]) if row else None
+
+
+def _snapshot_not_after_observed(latest_observed: tuple[int, int] | None):
+    return _not_after_week(FeatureSnapshot, latest_observed)
+
+
+def get_last_observed_year(db: Session, disease_id: int) -> int | None:
+    """Năm cuối cùng có raw disease data trong DB cho disease này."""
+    latest = get_last_observed_week(db, disease_id)
+    return latest[0] if latest else None
 
 
 def get_features(
@@ -29,6 +92,8 @@ def get_features(
     feature_version: str = "v1",
 ) -> dict[str, float] | None:
     """Trả về feature dict cho (disease, iso3, year, week) hoặc None nếu không có."""
+    if is_after_latest_valid_week(disease_id, iso_year, iso_week):
+        return None
     row = (
         db.query(FeatureSnapshot)
         .filter(
@@ -50,16 +115,18 @@ def get_latest_available_week(
     feature_version: str = "v1",
 ) -> tuple[int, int] | None:
     """Tuần mới nhất có feature snapshot cho (disease, iso3). Trả (iso_year, iso_week) hoặc None."""
-    row = (
-        db.query(FeatureSnapshot.iso_year, FeatureSnapshot.iso_week)
-        .filter(
-            FeatureSnapshot.disease_id == disease_id,
-            FeatureSnapshot.iso3 == iso3.upper(),
-            FeatureSnapshot.feature_version == feature_version,
-        )
-        .order_by(FeatureSnapshot.iso_year.desc(), FeatureSnapshot.iso_week.desc())
-        .first()
+    query = db.query(FeatureSnapshot.iso_year, FeatureSnapshot.iso_week).filter(
+        FeatureSnapshot.disease_id == disease_id,
+        FeatureSnapshot.iso3 == iso3.upper(),
+        FeatureSnapshot.feature_version == feature_version,
     )
+    latest_observed = get_last_observed_week(db, disease_id, iso3)
+    if latest_observed is None:
+        return None
+    observed_filter = _snapshot_not_after_observed(latest_observed)
+    if observed_filter is not None:
+        query = query.filter(observed_filter)
+    row = query.order_by(FeatureSnapshot.iso_year.desc(), FeatureSnapshot.iso_week.desc()).first()
     return (row[0], row[1]) if row else None
 
 
@@ -94,7 +161,7 @@ def get_training_years_for_country(
         .filter(
             DiseaseCase.disease_id == disease_id,
             DiseaseCase.iso3 == iso3.upper(),
-            DiseaseCase.raw_count > 0,
+            _has_observed_case_data(),
             DiseaseCase.iso_year.between(2010, 2019),
         )
         .order_by(DiseaseCase.iso_year)
@@ -112,20 +179,20 @@ def get_available_countries(
     Danh sách tất cả countries có ít nhất 1 feature snapshot, kèm metadata coverage.
     Trả list[dict] với keys: iso3, country_name, snapshot_years, latest_year, latest_week.
     """
-    rows = (
+    query = (
         db.query(
             FeatureSnapshot.iso3,
             func.array_agg(distinct(FeatureSnapshot.iso_year)).label("snap_years"),
-            func.max(FeatureSnapshot.iso_year).label("latest_year"),
-            func.max(FeatureSnapshot.iso_week).label("latest_week"),
         )
         .filter(
             FeatureSnapshot.disease_id == disease_id,
             FeatureSnapshot.feature_version == feature_version,
         )
-        .group_by(FeatureSnapshot.iso3)
-        .all()
     )
+    observed_filter = _snapshot_not_after_observed(get_last_observed_week(db, disease_id))
+    if observed_filter is not None:
+        query = query.filter(observed_filter)
+    rows = query.group_by(FeatureSnapshot.iso3).all()
 
     # join country_name
     iso3_list = [r[0] for r in rows]
@@ -139,8 +206,14 @@ def get_available_countries(
         country_map = {r[0]: r[1] for r in c_rows}
 
     result = []
-    for iso3, snap_years, latest_year, latest_week in rows:
+    for iso3, snap_years in rows:
+        latest = get_latest_available_week(db, disease_id, iso3, feature_version)
+        if latest is None:
+            continue
+        latest_year, latest_week = latest
         sorted_years = sorted(snap_years) if snap_years else []
+        if latest_year is not None:
+            sorted_years = [year for year in sorted_years if year <= latest_year]
         result.append({
             "iso3": iso3,
             "country_name": country_map.get(iso3),
@@ -165,6 +238,10 @@ def build_data_coverage(
     Dùng để populate ForecastResponse.data_coverage.
     """
     snap_years = get_snapshot_years(db, disease_id, iso3, feature_version)
+    latest_observed = get_last_observed_week(db, disease_id, iso3)
+    if latest_observed is not None:
+        max_year, _ = latest_observed
+        snap_years = [y for y in snap_years if y <= max_year]
     training_years = get_training_years_for_country(db, disease_id, iso3)
     in_training = as_of_year in TRAINING_YEARS
     is_dengue_nowcast = (
