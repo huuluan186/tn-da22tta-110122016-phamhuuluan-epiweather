@@ -57,37 +57,99 @@ DB_URL = os.getenv(
 ML_MODELS_DIR = PROJECT_ROOT / "ml_models"
 
 DISEASE_TO_ID = {"flu": 1, "dengue": 2}
-MODEL_VERSION_ID = {"flu": 1, "dengue": 2}  # từ bảng model_versions
+DENGUE_LATEST_VALID_WEEK = (2023, 36)
 
 
-def find_latest_snapshot_week(cur, disease_id: int) -> tuple[int, int] | None:
-    """Tìm (iso_year, iso_week) mới nhất có ít nhất N quốc gia với snapshot."""
+def latest_valid_week(disease: str) -> tuple[int, int] | None:
+    if disease == "dengue":
+        return DENGUE_LATEST_VALID_WEEK
+    return None
+
+
+def get_model_version_id(cur, disease_id: int) -> int:
     cur.execute(
         """
-        SELECT iso_year, iso_week, COUNT(DISTINCT iso3) AS n
-        FROM feature_snapshots
+        SELECT id
+        FROM model_versions
         WHERE disease_id = %s
-        GROUP BY iso_year, iso_week
-        ORDER BY iso_year DESC, iso_week DESC
+          AND version = 'v1-regressor'
+        ORDER BY is_champion DESC, is_active DESC, id DESC
         LIMIT 1
         """,
         (disease_id,),
     )
     row = cur.fetchone()
+    if row:
+        return int(row[0])
+    raise RuntimeError(f"Không tìm thấy model_versions v1-regressor cho disease_id={disease_id}")
+
+
+def not_after_latest_valid(disease: str, year: int, week: int) -> bool:
+    latest = latest_valid_week(disease)
+    if latest is None:
+        return True
+    max_year, max_week = latest
+    return year < max_year or (year == max_year and week <= max_week)
+
+
+def find_latest_snapshot_week(cur, disease: str, disease_id: int) -> tuple[int, int] | None:
+    """Tìm (iso_year, iso_week) mới nhất có ít nhất N quốc gia với snapshot."""
+    latest = latest_valid_week(disease)
+    if latest is None:
+        cur.execute(
+            """
+            SELECT iso_year, iso_week, COUNT(DISTINCT iso3) AS n
+            FROM feature_snapshots
+            WHERE disease_id = %s
+            GROUP BY iso_year, iso_week
+            ORDER BY iso_year DESC, iso_week DESC
+            LIMIT 1
+            """,
+            (disease_id,),
+        )
+    else:
+        max_year, max_week = latest
+        cur.execute(
+            """
+            SELECT iso_year, iso_week, COUNT(DISTINCT iso3) AS n
+            FROM feature_snapshots
+            WHERE disease_id = %s
+              AND (iso_year < %s OR (iso_year = %s AND iso_week <= %s))
+            GROUP BY iso_year, iso_week
+            ORDER BY iso_year DESC, iso_week DESC
+            LIMIT 1
+            """,
+            (disease_id, max_year, max_year, max_week),
+        )
+    row = cur.fetchone()
     return (row[0], row[1]) if row else None
 
 
-def list_all_snapshot_weeks(cur, disease_id: int) -> list[tuple[int, int]]:
+def list_all_snapshot_weeks(cur, disease: str, disease_id: int) -> list[tuple[int, int]]:
     """Trả về toàn bộ (year, week) có feature_snapshot — dùng cho backfill."""
-    cur.execute(
-        """
-        SELECT DISTINCT iso_year, iso_week
-        FROM feature_snapshots
-        WHERE disease_id = %s
-        ORDER BY iso_year, iso_week
-        """,
-        (disease_id,),
-    )
+    latest = latest_valid_week(disease)
+    if latest is None:
+        cur.execute(
+            """
+            SELECT DISTINCT iso_year, iso_week
+            FROM feature_snapshots
+            WHERE disease_id = %s
+            ORDER BY iso_year, iso_week
+            """,
+            (disease_id,),
+        )
+    else:
+        max_year, max_week = latest
+        cur.execute(
+            """
+            SELECT DISTINCT iso_year, iso_week
+            FROM feature_snapshots
+            WHERE disease_id = %s
+              AND (iso_year < %s OR (iso_year = %s AND iso_week <= %s))
+            ORDER BY iso_year, iso_week
+            """,
+            (disease_id, max_year, max_year, max_week),
+        )
     return [(r[0], r[1]) for r in cur.fetchall()]
 
 
@@ -226,20 +288,29 @@ def main():
             total_errors: list = []
             for disease in diseases:
                 disease_id = DISEASE_TO_ID[disease]
-                model_version_id = MODEL_VERSION_ID[disease]
+                model_version_id = get_model_version_id(cur, disease_id)
 
                 if args.all_snapshots:
-                    targets = list_all_snapshot_weeks(cur, disease_id)
+                    targets = list_all_snapshot_weeks(cur, disease, disease_id)
                 elif use_range:
                     targets = [(args.year, w) for w in range(args.from_week, args.to_week + 1)]
                 elif args.year and args.week:
                     targets = [(args.year, args.week)]
                 else:
-                    latest = find_latest_snapshot_week(cur, disease_id)
+                    latest = find_latest_snapshot_week(cur, disease, disease_id)
                     if latest is None:
                         print(f"\n  [{disease}] Không có feature_snapshot — SKIP")
                         continue
                     targets = [latest]
+                targets = [
+                    (y, w) for y, w in targets
+                    if not_after_latest_valid(disease, y, w)
+                ]
+                if not targets:
+                    latest = latest_valid_week(disease)
+                    suffix = f" sau cutoff {latest[0]}-W{latest[1]:02d}" if latest else ""
+                    print(f"\n  [{disease}] Không có target hợp lệ{suffix} — SKIP")
+                    continue
 
                 print(f"\n[2/2] [{disease}] Processing {len(targets)} week(s)…")
 

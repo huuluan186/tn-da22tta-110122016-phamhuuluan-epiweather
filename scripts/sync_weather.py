@@ -67,6 +67,8 @@ def fetch_country_weather(
     start_date: str,
     end_date: str,
     timeout: int = 60,
+    retries: int = 3,
+    retry_sleep: float = 2.0,
 ) -> pd.DataFrame:
     """Pull hourly weather 1 quốc gia từ Open-Meteo Archive."""
     params = {
@@ -77,8 +79,21 @@ def fetch_country_weather(
         "hourly": ",".join(VAR_MAP.keys()),
         "timezone": "UTC",
     }
-    r = requests.get(OPEN_METEO_URL, params=params, timeout=timeout)
-    r.raise_for_status()
+    last_error: Exception | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(OPEN_METEO_URL, params=params, timeout=timeout)
+            r.raise_for_status()
+            break
+        except requests.RequestException as e:
+            last_error = e
+            if attempt == retries:
+                raise
+            sleep_sec = retry_sleep * attempt
+            print(f"    Open-Meteo retry {attempt}/{retries - 1} after error: {str(e)[:80]}")
+            time.sleep(sleep_sec)
+    else:
+        raise last_error or RuntimeError("Open-Meteo request failed")
     payload = r.json()
     hourly = payload.get("hourly")
     if not hourly:
@@ -167,6 +182,10 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--sleep", type=float, default=0.3,
                     help="Sleep giây giữa API calls (avoid rate limit)")
+    ap.add_argument("--retries", type=int, default=3,
+                    help="Retry count per Open-Meteo country request")
+    ap.add_argument("--retry-sleep", type=float, default=2.0,
+                    help="Base sleep seconds between retries; multiplied by attempt number")
     ap.add_argument("--trigger", type=str, default="manual",
                     choices=["manual", "scheduled", "api", "event"])
     args = ap.parse_args()
@@ -223,7 +242,11 @@ def main():
 
             for i, (iso3, name, lat, lon) in enumerate(all_countries, 1):
                 try:
-                    raw = fetch_country_weather(lat, lon, start_str, end_str)
+                    raw = fetch_country_weather(
+                        lat, lon, start_str, end_str,
+                        retries=args.retries,
+                        retry_sleep=args.retry_sleep,
+                    )
                     weekly = aggregate_weekly(raw)
                     n = upsert_weather(cur, iso3, weekly, source_id, dry_run=args.dry_run)
                     total_upserted += n

@@ -218,6 +218,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     predicted_value   DOUBLE PRECISION,
     predicted_cases   DOUBLE PRECISION,
     risk_level        VARCHAR(10)      CHECK (risk_level IN ('Low', 'Medium', 'High')),
+    risk_probability  DOUBLE PRECISION,
     risk_q33          DOUBLE PRECISION,
     risk_q67          DOUBLE PRECISION,
     model_version_id  INTEGER          REFERENCES model_versions(id),

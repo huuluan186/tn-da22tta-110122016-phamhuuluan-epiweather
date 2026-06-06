@@ -94,8 +94,11 @@ def safe_hyperparams(model) -> dict:
     # Convert non-serializable types to str
     cleaned = {}
     for k, v in params.items():
+        if isinstance(v, float) and not np.isfinite(v):
+            cleaned[k] = None
+            continue
         try:
-            json.dumps(v)
+            json.dumps(v, allow_nan=False)
             cleaned[k] = v
         except (TypeError, ValueError):
             cleaned[k] = str(v)
@@ -160,7 +163,7 @@ def load_model_versions(cur) -> dict:
                 INSERT INTO model_evaluations
                     (model_version_id, eval_set, eval_type,
                      r2_score, mae, rmse, n_samples, notes)
-                VALUES (%s, 'cv', 'cv-walk-forward', %s, %s, %s, %s, %s)
+                VALUES (%s, 'cv-walk-forward', 'cv', %s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING
                 """,
                 (
