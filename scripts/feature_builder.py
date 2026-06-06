@@ -50,6 +50,7 @@ DB_URL = os.getenv(
 FLU_FEATURES = [
     "flu_log_lag1", "flu_log_lag2", "flu_log_lag3",
     "flu_log_rollmean4", "flu_log_rollmean8",
+    "flu_log_velocity", "flu_log_accel",
     "temp_c_lag3", "temp_c_lag7",
     "humidity_pct_lag1", "humidity_pct_lag7",
     "solar_wm2_lag7", "dewpoint_c_lag1",
@@ -61,6 +62,7 @@ DENGUE_FEATURES = [
     "deng_log_lag6", "deng_log_lag8", "deng_log_lag10",
     "deng_log_lag12", "deng_log_lag14",
     "deng_log_rollmean4", "deng_log_rollmean8",
+    "deng_log_velocity", "deng_log_accel",
     "temp_c_lag11", "dewpoint_c_lag8", "precip_mm_lag6",
     "humidity_pct_lag1", "solar_wm2_lag16",
     "iso_week_sin", "iso_week_cos", "iso_year",
@@ -71,6 +73,7 @@ WEATHER_VARS = ["temp_c", "dewpoint_c", "humidity_pct", "precip_mm", "solar_wm2"
 # Warmup = số tuần tối thiểu cần trước target_week để tính đủ lags
 FLU_WARMUP = 10    # max(rollmean8=8, weather_lag7=7) + buffer
 DENGUE_WARMUP = 18  # max(deng_lag14=14, solar_lag16=16) + buffer
+DENGUE_LATEST_VALID_DATE = date.fromisocalendar(2023, 36, 1)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -189,6 +192,17 @@ def compute_features(
         d[f"{disease_col}_rollmean4"] = d[disease_col].shift(1).rolling(4).mean()
     if f"{disease_col}_rollmean8" in feature_names:
         d[f"{disease_col}_rollmean8"] = d[disease_col].shift(1).rolling(8).mean()
+
+    # Trend features: velocity = log growth rate, accel = change in growth rate
+    if f"{disease_col}_velocity" in feature_names:
+        if disease_col.startswith("flu"):
+            # flu: dùng lag1, lag2, lag3
+            d[f"{disease_col}_velocity"] = d[f"{disease_col}_lag1"] - d[f"{disease_col}_lag2"]
+            d[f"{disease_col}_accel"]    = (d[f"{disease_col}_lag1"] - d[f"{disease_col}_lag2"]) - (d[f"{disease_col}_lag2"] - d[f"{disease_col}_lag3"])
+        else:
+            # dengue: dùng lag6, lag8, lag10
+            d[f"{disease_col}_velocity"] = d[f"{disease_col}_lag6"]  - d[f"{disease_col}_lag8"]
+            d[f"{disease_col}_accel"]    = (d[f"{disease_col}_lag6"] - d[f"{disease_col}_lag8"]) - (d[f"{disease_col}_lag8"] - d[f"{disease_col}_lag10"])
 
     # ── Weather lags ──────────────────────────────────────────────────────────
     for var in WEATHER_VARS:
@@ -359,6 +373,40 @@ def main():
         start_date = date(args.from_year, 1, 1)
         end_date = min(date(end_year, 12, 31), today)
 
+    # Dengue: OpenDengue v1.3 hiện chỉ hợp lệ tới 2023-W36.
+    # Không build feature cho các tuần sau mốc này, kể cả khi DB còn dòng sinh thừa.
+    if args.disease == "dengue" and not args.weeks_back:
+        end_date = min(end_date, DENGUE_LATEST_VALID_DATE)
+
+    # Dengue: nếu user không override to-year thì vẫn lấy thêm năm cuối có trong DB,
+    # nhưng không vượt quá cutoff hợp lệ phía trên.
+    if args.disease == "dengue" and not args.weeks_back and args.to_year is None:
+        conn = psycopg2.connect(DB_URL)
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                SELECT MAX(dc.iso_year)
+                FROM disease_cases dc
+                JOIN diseases d ON d.id = dc.disease_id
+                WHERE d.code = %s
+                """,
+                ("dengue",),
+            )
+            max_year = cur.fetchone()[0]
+            if max_year:
+                end_date = min(end_date, date(int(max_year), 12, 31), DENGUE_LATEST_VALID_DATE)
+        finally:
+            cur.close()
+            conn.close()
+
+    if start_date > end_date:
+        print("=" * 60)
+        print(f"  feature_builder.py — {disease_code} features → feature_snapshots")
+        print("=" * 60)
+        print(f"  Không có tuần hợp lệ để build: {start_date} > {end_date}")
+        return
+
     # Enumerate target weeks in range
     target_weeks = []
     d = first_monday_on_or_after(start_date)
@@ -404,6 +452,13 @@ def main():
                 "SELECT iso3, latitude FROM countries WHERE latitude IS NOT NULL ORDER BY iso3"
             )
             all_countries = cur.fetchall()
+            if disease_code == "dengue" and not wanted:
+                cur.execute(
+                    "SELECT DISTINCT iso3 FROM disease_cases WHERE disease_id = %s",
+                    (disease_id,),
+                )
+                dengue_iso3 = {r[0] for r in cur.fetchall()}
+                all_countries = [c for c in all_countries if c[0] in dengue_iso3]
             if wanted:
                 all_countries = [c for c in all_countries if c[0] in wanted]
             print(f"  Countries to process: {len(all_countries)}")

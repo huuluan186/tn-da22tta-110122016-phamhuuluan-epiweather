@@ -30,8 +30,8 @@ _REGRESSOR_FILES = {
     "dengue": "rf_dengue_regressor_v1",
 }
 _CLASSIFIER_FILES = {
-    "flu":    "xgb_flu_classifier_v1",
-    "dengue": "xgb_dengue_classifier_v1",
+    "flu":    "xgb_flu_classifier_v2",
+    "dengue": "xgb_dengue_classifier_v2",
 }
 
 # Multi-horizon files (SESSION 8 — 21/05/2026)

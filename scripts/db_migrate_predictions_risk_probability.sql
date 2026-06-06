@@ -1,0 +1,2 @@
+ALTER TABLE predictions
+    ADD COLUMN IF NOT EXISTS risk_probability DOUBLE PRECISION;
