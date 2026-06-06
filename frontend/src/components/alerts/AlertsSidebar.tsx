@@ -7,9 +7,11 @@ import AlertItem, { type AlertCountry } from "./AlertItem";
 interface Props {
   entries: RiskEntry[];
   disease: DiseaseId;
+  selectedIso3?: string | null;
+  onSelect?: (iso3: string) => void;
 }
 
-export default function AlertsSidebar({ entries, disease }: Props) {
+export default function AlertsSidebar({ entries, disease, selectedIso3, onSelect }: Props) {
   const [sortBy, setSortBy] = useState<"score" | "name">("score");
 
   const filtered = useMemo(() => {
@@ -58,7 +60,7 @@ export default function AlertsSidebar({ entries, disease }: Props) {
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as "score" | "name")}
         >
-          <option value="score">Theo điểm (rủi ro cao nhất trước)</option>
+          <option value="score">Theo phần trăm xảy ra (cao nhất trước)</option>
           <option value="name">Theo tên (A→Z)</option>
         </select>
       </div>
@@ -70,7 +72,12 @@ export default function AlertsSidebar({ entries, disease }: Props) {
           </div>
         )}
         {filtered.map((item) => (
-          <AlertItem key={item.iso3} item={item} />
+          <AlertItem
+            key={item.iso3}
+            item={item}
+            isSelected={selectedIso3 === item.iso3}
+            onSelect={onSelect}
+          />
         ))}
       </div>
     </div>

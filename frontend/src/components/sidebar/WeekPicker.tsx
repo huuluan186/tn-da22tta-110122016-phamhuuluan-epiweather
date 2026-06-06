@@ -13,21 +13,21 @@ interface Props {
 const DISEASE_CONFIG: Record<
   DiseaseId,
   {
-    historical: number[];
-    realtime: { year: number; label: string }[];
+    backtest: number[];
+    latest: { year: number; label: string }[];
     weekRange: Record<number, { min: number; max: number }>;
     defaultYear: number;
   }
 > = {
   flu: {
-    historical: Array.from({ length: 10 }, (_, i) => 2010 + i), // 2010-2019
-    realtime: [{ year: 2026, label: "2026 (W02-W21)" }],
+    backtest: Array.from({ length: 10 }, (_, i) => 2010 + i),
+    latest: [{ year: 2026, label: "2026 (W02-W21)" }],
     weekRange: { 2026: { min: 2, max: 21 } },
     defaultYear: 2026,
   },
   dengue: {
-    historical: Array.from({ length: 10 }, (_, i) => 2010 + i), // 2010-2019
-    realtime: [
+    backtest: Array.from({ length: 10 }, (_, i) => 2010 + i),
+    latest: [
       { year: 2023, label: "2023 (W01-W36)" },
       { year: 2022, label: "2022" },
       { year: 2021, label: "2021" },
@@ -41,20 +41,22 @@ function getRange(disease: DiseaseId, y: number) {
   return DISEASE_CONFIG[disease].weekRange[y] ?? { min: 1, max: 52 };
 }
 
-function isRealtime(disease: DiseaseId, y: number) {
-  return DISEASE_CONFIG[disease].realtime.some((r) => r.year === y);
+function isLatestPeriod(disease: DiseaseId, y: number) {
+  return DISEASE_CONFIG[disease].latest.some((r) => r.year === y);
 }
 
 function getHintText(disease: DiseaseId, y: number): string {
-  if (!isRealtime(disease, y)) return "Historical: dữ liệu training 2010-2019";
-  if (disease === "flu") return "Realtime: 2026-W02 đến W21 · dự đoán từ model ML";
-  if (y === 2023) return "Realtime: 2023-W01 đến W36 · OpenDengue + Open-Meteo";
-  return `Realtime: ${y} · dự đoán từ model ML`;
+  if (!isLatestPeriod(disease, y)) {
+    return "Backtest: mô phỏng dự báo trên dữ liệu quá khứ để so sánh/đánh giá";
+  }
+  if (disease === "flu") return "Mới nhất: 2026-W02 đến W21 · dự báo từ mô hình ML";
+  if (y === 2023) return "Mới nhất: 2023-W01 đến W36 · dữ liệu hiện có từ nguồn dịch tễ + thời tiết";
+  return `Mới nhất: ${y} · tuần có dữ liệu dự báo trong hệ thống`;
 }
 
 export default function WeekPicker({ disease, year, week, onYearChange, onWeekChange }: Props) {
   const cfg = DISEASE_CONFIG[disease];
-  const allValid = [...cfg.historical, ...cfg.realtime.map((r) => r.year)];
+  const allValid = [...cfg.backtest, ...cfg.latest.map((r) => r.year)];
 
   const safeYear = allValid.includes(year) ? year : cfg.defaultYear;
   const { min: minWeek, max: maxWeek } = getRange(disease, safeYear);
@@ -75,13 +77,13 @@ export default function WeekPicker({ disease, year, week, onYearChange, onWeekCh
           }}
           className="flex-1 h-[30px] bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-1)] text-xs font-semibold px-2 text-center cursor-pointer focus:outline-none focus:border-[var(--color-text-3)]"
         >
-          <optgroup label="Realtime">
-            {cfg.realtime.map((r) => (
+          <optgroup label="Mới nhất / dữ liệu vận hành">
+            {cfg.latest.map((r) => (
               <option key={r.year} value={r.year}>{r.label}</option>
             ))}
           </optgroup>
-          <optgroup label="Historical (training data)">
-            {cfg.historical.map((y) => (
+          <optgroup label="Backtest / kiểm thử quá khứ">
+            {cfg.backtest.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </optgroup>

@@ -1,5 +1,6 @@
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import ForecastChart from "../components/detail/ForecastChart";
 import { DISEASES, RISK_LEVELS } from "../constants";
@@ -12,8 +13,8 @@ import type { DiseaseId, RiskLevel } from "../types/domain";
 
 // Năm hợp lệ cho từng disease (phải khớp với data trong predictions table)
 const VALID_YEARS: Record<DiseaseId, { min: number; max: number; hint: string }> = {
-  flu:    { min: 2010, max: 2026, hint: "Historical 2010-2019 hoặc Realtime 2026 (W02-W21)" },
-  dengue: { min: 2010, max: 2023, hint: "Historical 2010-2019 hoặc Nowcast 2021-2023 (W01-W36)" },
+  flu:    { min: 2010, max: 2026, hint: "Backtest 2010-2019 hoặc mới nhất 2026 (W02-W21)" },
+  dengue: { min: 2010, max: 2023, hint: "Backtest 2010-2019 hoặc mới nhất 2021-2023 (W01-W36)" },
 };
 
 function toRiskLevel(raw: string | null | undefined): RiskLevel {
@@ -90,21 +91,22 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 export default function DiseaseDetailPage() {
   const { iso3 } = useParams<{ iso3: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { disease, year: uiYear, week: uiWeek } = useUIStore();
 
-  // Picker để query năm lịch sử — null = dùng nowcast
+  // Picker để query tuần backtest — null = dùng latest nowcast
   const [pickerYear, setPickerYear] = useState<number | null>(null);
   const [pickerWeek, setPickerWeek] = useState<number | null>(null);
   const isHistoricalMode = pickerYear !== null && pickerWeek !== null;
 
-  // Nowcast: tuần mới nhất có data realtime
+  // Nowcast: tuần mới nhất có dữ liệu dự báo
   const {
     forecast: nowcast,
     isLoading: nowcastLoading,
     isError: nowcastError,
   } = useNowcast(disease, iso3);
 
-  // Historical: dùng picker năm/tuần khi user chọn
+  // Backtest: dùng picker năm/tuần khi user chọn
   const {
     forecast: historicalForecast,
     isLoading: historicalLoading,
@@ -114,7 +116,7 @@ export default function DiseaseDetailPage() {
   const forecast = isHistoricalMode ? historicalForecast : nowcast;
   const forecastLoading = isHistoricalMode ? historicalLoading : nowcastLoading;
   const forecastError = isHistoricalMode ? historicalError : (nowcastError && !historicalForecast);
-  const isRealtime = !isHistoricalMode && Boolean(nowcast);
+  const isLatestMode = !isHistoricalMode && Boolean(nowcast);
 
   // week/year dùng cho display (header + prediction)
   const displayWeek = forecast?.as_of_iso_week ?? pickerWeek ?? uiWeek;
@@ -125,16 +127,27 @@ export default function DiseaseDetailPage() {
   const [inputWeek, setInputWeek] = useState("");
 
   const validRange = VALID_YEARS[disease];
+  const clearQueryCache = () => {
+    queryClient.removeQueries({ queryKey: ["prediction", disease, iso3], exact: false });
+    queryClient.removeQueries({ queryKey: ["forecast", disease, iso3], exact: false });
+    queryClient.removeQueries({ queryKey: ["nowcast", disease, iso3], exact: false });
+    queryClient.invalidateQueries({ queryKey: ["prediction", disease, iso3], exact: false });
+    queryClient.invalidateQueries({ queryKey: ["forecast", disease, iso3], exact: false });
+    queryClient.invalidateQueries({ queryKey: ["nowcast", disease, iso3], exact: false });
+  };
+
   const applyPicker = () => {
     const y = parseInt(inputYear, 10);
     const w = parseInt(inputWeek, 10);
     if (y >= validRange.min && y <= validRange.max && w >= 1 && w <= 53) {
+      clearQueryCache();
       setPickerYear(y);
       setPickerWeek(w);
     }
   };
 
   const resetPicker = () => {
+    clearQueryCache();
     setPickerYear(null);
     setPickerWeek(null);
     setInputYear("");
@@ -144,9 +157,18 @@ export default function DiseaseDetailPage() {
   if (!iso3) {
     return (
       <div className="flex-1 grid place-items-center bg-[var(--color-bg)]">
-        <p className="text-[var(--color-text-3)] text-sm">
-          Chọn một quốc gia trên bản đồ để xem chi tiết.
-        </p>
+        <div className="max-w-[420px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6 text-center">
+          <div className="text-sm font-semibold text-[var(--color-text-1)]">Chưa chọn quốc gia</div>
+          <div className="mt-2 text-xs text-[var(--color-text-3)]">
+            Trang này chỉ hiển thị khi bạn chọn một quốc gia từ bản đồ hoặc danh sách cảnh báo.
+          </div>
+          <button
+            onClick={() => navigate("/")}
+            className="mt-4 h-[32px] px-4 rounded-md text-xs font-semibold border border-[var(--color-border)] bg-[var(--color-surface-3)] text-[var(--color-text-1)] hover:border-[var(--color-text-2)] transition-colors"
+          >
+            Quay lại bản đồ
+          </button>
+        </div>
       </div>
     );
   }
@@ -196,16 +218,16 @@ export default function DiseaseDetailPage() {
         </div>
 
         <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
-          {/* Header: title + as-of label + historical picker */}
+          {/* Header: title + as-of label + backtest picker */}
           <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
             <div>
               <div className="text-[13px] font-semibold text-[var(--color-text-1)]">
                 4-week Forecast · {d.label}
-                {isRealtime && (
-                  <span className="ml-2 text-[10px] font-normal text-emerald-400">● realtime</span>
+                {isLatestMode && (
+                  <span className="ml-2 text-[10px] font-normal text-emerald-400">● mới nhất</span>
                 )}
                 {isHistoricalMode && (
-                  <span className="ml-2 text-[10px] font-normal text-amber-400">● historical</span>
+                  <span className="ml-2 text-[10px] font-normal text-amber-400">● backtest</span>
                 )}
               </div>
               {forecast && (
@@ -216,7 +238,7 @@ export default function DiseaseDetailPage() {
               )}
             </div>
 
-            {/* Historical picker */}
+            {/* Backtest picker */}
             <div className="flex flex-col items-end gap-1">
               <div className="flex items-center gap-1.5 text-[11px]">
                 <input
@@ -275,7 +297,7 @@ export default function DiseaseDetailPage() {
             <div className="h-[260px] grid place-items-center text-center text-amber-400 text-xs gap-1">
               <div>Không có feature snapshot cho W{String(pickerWeek ?? displayWeek).padStart(2, "0")}/{pickerYear ?? displayYear}</div>
               <div className="text-[var(--color-text-3)]">
-                {isHistoricalMode ? "Thử năm khác (2010–2019 hoặc 2026)" : "Cần sync realtime data trước"}
+                {isHistoricalMode ? "Thử tuần/năm backtest khác" : "Cần cập nhật dữ liệu dự báo trước"}
               </div>
             </div>
           )}
@@ -295,7 +317,7 @@ export default function DiseaseDetailPage() {
           )}
           {!historyLoading && historyError && (
             <div className="h-[220px] grid place-items-center text-[var(--color-text-3)] text-xs">
-              Chưa có dữ liệu lịch sử từ API.
+              Chưa có dữ liệu xu hướng từ API.
             </div>
           )}
           {!historyLoading && !historyError && history && history.points.length > 0 && (

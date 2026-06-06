@@ -6,6 +6,7 @@ export interface DiseaseDef {
   label: string;
   short: string;
   color: string;
+  description: string;
 }
 
 export interface RiskScore {

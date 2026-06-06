@@ -39,7 +39,7 @@ export default function TopNav({ week, year }: Props) {
 
       <div className="ml-auto flex items-center gap-2 px-3 py-1.5 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-xs font-medium tabular-nums">
         <PulseDot />
-        <span className="text-[var(--color-text-3)]">REALTIME</span>
+        <span className="text-[var(--color-text-3)]">MỚI NHẤT</span>
         <span className="text-[var(--color-text-1)]">
           Tuần {String(week).padStart(2, "0")} · {year}
         </span>

@@ -1,8 +1,20 @@
 import type { DiseaseDef, RiskLevel } from "./types/domain";
 
 export const DISEASES: DiseaseDef[] = [
-  { id: "flu", label: "Influenza", short: "FLU", color: "#3b82f6" },
-  { id: "dengue", label: "Dengue", short: "DEN", color: "#f59e0b" },
+  {
+    id: "flu",
+    label: "Influenza",
+    short: "FLU",
+    color: "#3b82f6",
+    description: "Bệnh hô hấp theo mùa, lây qua giọt bắn và tiếp xúc gần.",
+  },
+  {
+    id: "dengue",
+    label: "Dengue",
+    short: "DEN",
+    color: "#f59e0b",
+    description: "Bệnh do muỗi truyền, bùng phát mạnh theo mùa mưa và khí hậu nóng ẩm.",
+  },
 ];
 
 export const RISK_LEVELS: Record<RiskLevel, { label: string; color: string }> = {

@@ -25,6 +25,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/country" element={<DiseaseDetailPage />} />
           <Route path="/country/:iso3" element={<DiseaseDetailPage />} />
         </Routes>
       </main>

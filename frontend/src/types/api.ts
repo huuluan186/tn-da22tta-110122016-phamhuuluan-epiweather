@@ -8,9 +8,7 @@ export interface RiskMapItem {
   who_region: string | null;
   predicted_cases: number | null;
   risk_level: string | null;
-  risk_probability: number | null;   // P(High) 0..1 — × 100 = severity score
-  risk_q33: number | null;
-  risk_q67: number | null;
+  risk_probability: number | null;   // P(High) 0..1, UI hiển thị dưới dạng %
 }
 
 export interface RiskMapResponse {
@@ -21,7 +19,7 @@ export interface RiskMapResponse {
   items: RiskMapItem[];
 }
 
-// Normalised shape consumed by UI components
+// Dạng dữ liệu đã chuẩn hóa cho các component UI
 export interface RiskEntry {
   iso3: string;
   countryName: string;

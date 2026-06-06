@@ -1,38 +1,54 @@
 interface Props {
-  size?: number;            // px của icon vuông; mặc định 30
-  textSize?: string;        // tailwind text-* class
-  withText?: boolean;       // ẩn chữ EpiWatch nếu false
+  size?: number;
+  textSize?: string;
+  withText?: boolean;
 }
 
 export default function Logo({ size = 30, textSize = "text-[15px]", withText = true }: Props) {
+  const iconSize = size * 0.78;
+
   return (
     <div className="flex items-center gap-2.5 font-bold tracking-tight select-none">
       <div
-        className="relative rounded-lg bg-gradient-to-br from-[#3b82f6] via-[#6366f1] to-[#8b5cf6] grid place-items-center shadow-[0_0_18px_rgba(99,102,241,0.45)]"
+        className="relative rounded-lg bg-[#111827] grid place-items-center shadow-[0_0_18px_rgba(20,184,166,0.32)] ring-1 ring-white/10 overflow-hidden"
         style={{ width: size, height: size }}
       >
-        <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" opacity="0.9" />
-          <path d="M3 12h18" opacity="0.6" />
-          <path d="M12 3a14 14 0 0 1 0 18" opacity="0.6" />
-          <path d="M12 3a14 14 0 0 0 0 18" opacity="0.6" />
-        </svg>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,197,94,0.34),transparent_36%),linear-gradient(135deg,#0f766e_0%,#2563eb_52%,#4f46e5_100%)]" />
         <svg
-          className="absolute -bottom-0.5 -right-0.5 bg-[#0f1117] rounded-full p-0.5"
-          width={size * 0.45}
-          height={size * 0.45}
-          viewBox="0 0 24 24"
+          width={iconSize}
+          height={iconSize}
+          viewBox="0 0 64 64"
           fill="none"
-          stroke="#22c55e"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+          aria-hidden="true"
+          className="relative"
         >
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          <path
+            d="M32 6.5 52 14v15.7c0 12.5-8.1 22.9-20 27.8-11.9-4.9-20-15.3-20-27.8V14l20-7.5Z"
+            fill="rgba(15,23,42,0.64)"
+            stroke="rgba(255,255,255,0.86)"
+            strokeWidth="3"
+            strokeLinejoin="round"
+          />
+          <circle cx="32" cy="29" r="14" stroke="#bfdbfe" strokeWidth="2.5" />
+          <path
+            d="M18 29h28M32 15c4.1 3.7 6.2 8.3 6.2 14S36.1 39.3 32 43M32 15c-4.1 3.7-6.2 8.3-6.2 14S27.9 39.3 32 43"
+            stroke="#93c5fd"
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.82"
+          />
+          <path
+            d="M16 42h8l3.6-8.2 7.2 15.1 3.7-7H48"
+            stroke="#34d399"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="48" cy="42" r="4.4" fill="#ef4444" stroke="white" strokeWidth="2.4" />
         </svg>
       </div>
       {withText && (
-        <span className={`${textSize} bg-gradient-to-r from-white to-[#a5b4fc] bg-clip-text text-transparent`}>
+        <span className={`${textSize} bg-gradient-to-r from-white via-[#bfdbfe] to-[#5eead4] bg-clip-text text-transparent`}>
           EpiWatch
         </span>
       )}

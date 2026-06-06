@@ -31,10 +31,10 @@ function buildOption(data: MapDataItem[]) {
       borderColor: "#2a3040",
       textStyle: { color: "#f1f5f9", fontFamily: "Inter" },
       formatter: (p: { name: string; value: number; data?: MapDataItem }) => {
-        if (!p.value && p.value !== 0) return `<b>${p.name}</b><br/>No data available`;
+        if (!p.value && p.value !== 0) return `<b>${p.name}</b><br/>Chưa có dữ liệu`;
         const r = p.data?.risk ?? "none";
         const badge = `<span style="display:inline-block;margin-right:6px;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:3px;background:${RISK_LEVELS[r].color};color:white;">${RISK_LEVELS[r].label}</span>`;
-        return `<b>${p.name}</b><br/><br/>${badge} <span style="font-weight:bold;font-size:14px;">${p.value}</span> / 100`;
+        return `<b>${p.name}</b><br/><br/>${badge} Xác suất rủi ro: <span style="font-weight:bold;font-size:14px;">${p.value}%</span>`;
       },
     },
     series: [

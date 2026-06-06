@@ -57,12 +57,12 @@ export default function SummaryStats({ disease, week, entries }: Props) {
       </div>
 
       <div className="col-span-2 p-2.5 bg-[var(--color-surface-2)] border border-[var(--color-border-soft)] rounded-md">
-        <div className="text-[10px] uppercase text-[var(--color-text-3)] mb-1">Điểm rủi ro trung bình</div>
+        <div className="text-[10px] uppercase text-[var(--color-text-3)] mb-1">Phần trăm xảy ra trung bình</div>
         <div className="flex items-baseline gap-2">
           <div className="text-lg font-semibold" style={{ color: d.color }}>
             {stats.avgScore}
           </div>
-          <div className="text-[11px] text-[var(--color-text-3)]">/ 100</div>
+          <div className="text-[11px] text-[var(--color-text-3)]">%</div>
         </div>
       </div>
     </div>

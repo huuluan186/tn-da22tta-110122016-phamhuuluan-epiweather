@@ -15,13 +15,20 @@ export interface AlertCountry {
 
 interface Props {
   item: AlertCountry;
+  isSelected?: boolean;
+  onSelect?: (iso3: string) => void;
 }
 
-export default function AlertItem({ item }: Props) {
+export default function AlertItem({ item, isSelected, onSelect }: Props) {
   const d = DISEASES.find((x) => x.id === item.disease)!;
 
   return (
-    <div className="px-4 py-3 border-b border-[var(--color-border-soft)] cursor-pointer hover:bg-[var(--color-surface-2)]">
+    <div
+      className={`px-4 py-3 border-b border-[var(--color-border-soft)] cursor-pointer hover:bg-[var(--color-surface-2)] ${
+        isSelected ? "bg-[var(--color-surface-2)]" : ""
+      }`}
+      onClick={() => onSelect?.(item.iso3)}
+    >
       <div className="flex items-center gap-2">
         <div className="w-5 h-3.5 rounded-[2px] bg-[var(--color-surface-3)] grid place-items-center text-[9px] font-semibold tracking-wider text-[var(--color-text-3)] shrink-0">
           {item.iso2}
@@ -44,17 +51,16 @@ export default function AlertItem({ item }: Props) {
           {d.short}
         </span>
         <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] text-white"
+          className="inline-flex items-center gap-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] text-white"
           style={{ background: RISK_LEVELS[item.risk].color }}
+          title="Phần trăm xảy ra (0-100), tính từ xác suất P(High) của model phân loại"
         >
           {RISK_LEVELS[item.risk].label}
+          <span className="px-1.5 py-0.5 rounded-[3px] bg-black/20">{item.score}%</span>
         </span>
       </div>
 
       <div className="mt-1.5 flex justify-between text-[11px] text-[var(--color-text-2)] tabular-nums">
-        <span title="Điểm rủi ro 0-100, tính từ xác suất P(High) của model phân loại">
-          Điểm <strong className="text-[var(--color-text-1)]">{item.score}</strong>/100
-        </span>
         <span title="Số ca dự báo cho tuần này (từ model hồi quy)">
           {item.predictedCases !== null
             ? `Dự báo ${Math.round(item.predictedCases).toLocaleString()} ca`

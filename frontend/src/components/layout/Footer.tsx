@@ -14,7 +14,7 @@ export default function Footer() {
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] text-white">
               KLTN 2026
             </span>
-            <span className="text-[11px] text-[var(--color-text-3)]">v1.0.0 · 2026-W21</span>
+            <span className="text-[11px] text-[var(--color-text-3)]">v1.0.0</span>
           </div>
         </div>
 
@@ -44,11 +44,11 @@ export default function Footer() {
       </div>
 
       {/* Bottom bar: copyright + tech stack */}
-      <div className="border-t border-[var(--color-border-soft)] px-6 py-3 flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-[11px] text-[var(--color-text-3)]">
+      <div className="border-t border-[var(--color-border-soft)] px-6 py-3 flex flex-col md:flex-row items-start md:items-center gap-2 text-[11px] text-[var(--color-text-3)] flex items-center justify-center">
         <div>
           © 2026 EpiWatch · Khóa luận tốt nghiệp ĐH Trà Vinh · All rights reserved.
         </div>
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
           <span>Powered by</span>
           <span className="text-[var(--color-text-2)]">FastAPI</span>
           <span className="opacity-40">·</span>
@@ -59,7 +59,7 @@ export default function Footer() {
           <span className="text-[var(--color-text-2)]">XGBoost</span>
           <span className="opacity-40">·</span>
           <span className="text-[var(--color-text-2)]">PostgreSQL</span>
-        </div>
+        </div> */}
       </div>
     </footer>
   );

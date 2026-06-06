@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { DiseaseId } from "../types/domain";
 
 // Mỗi disease có "latest available" week khác nhau:
-// - flu:    realtime 2026-W21 (WHO FluNet sync hàng tuần)
+// - flu:    latest 2026-W21 (tuần mới nhất hệ thống có dữ liệu dự báo)
 // - dengue: nowcast  2023-W36 (OpenDengue v1.3 tới 9/2023)
 // Khi API /latest trả về thì year/week được đồng bộ lại qua useEffect ở HomePage.
 export const DISEASE_DEFAULTS: Record<DiseaseId, { year: number; week: number }> = {
@@ -15,7 +15,7 @@ interface UIState {
   year: number;
   week: number;
   // Tuần thực tế mới nhất có data — set bởi API /latest, KHÔNG đổi theo picker.
-  // Dùng cho TopNav "REALTIME · Tuần XX" để luôn phản ánh "data mới nhất hiện có".
+  // Dùng cho TopNav "MỚI NHẤT · Tuần XX" để luôn phản ánh "data mới nhất hiện có".
   latestYear: number | null;
   latestWeek: number | null;
   regions: string[];
