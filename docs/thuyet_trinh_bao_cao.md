@@ -84,7 +84,7 @@
 >
 > "**Approach v6** (chốt 21/05/2026): em mở rộng thành **multi-horizon** — train **4 model riêng cho h=1, h=2, h=3, h=4 tuần**, mỗi model dùng feature actual (không recursive). Lý do: tránh error propagation — nếu predict h=1 rồi feed làm input cho h=2, error h=1 sẽ amplify."
 >
-> "**Phase A + nowcast extension** (chốt 23/05/2026): em thêm **realtime/nowcast ingestion** — flu pull từ WHO API hàng tuần (2026-W21), dengue pull từ OpenDengue v1.3 batch (2023-W36). Đây là điểm khác biệt: không chỉ predict historical training data."
+> "**Phase A + nowcast extension** (chốt 23/05/2026): em thêm **latest-data/nowcast ingestion** — flu được sync hàng tuần từ WHO FluNet pipeline (2026-W21), dengue lấy từ OpenDengue v1.3 batch (2023-W36). Đây là điểm khác biệt: không chỉ predict historical training data."
 
 ---
 
@@ -186,7 +186,8 @@
 > "Tại sao dengue cần warmup 18 tuần? Vì max lag = 16 + buffer 2 tuần để tính rolling mean."
 >
 > "**Phần Endemic Channel** — đây là chuẩn quốc tế của WHO EWARS để phân Low/Med/High (Bortman 1999):
-> - Low: `cases < baseline (median của 5 năm gần)`
+> - Baseline = trung bình lịch sử 5 năm gần của cùng quốc gia, cùng tuần ISO
+> - Low: `cases < baseline`
 > - Medium: `baseline ≤ cases < baseline + 2σ`
 > - High: `cases ≥ baseline + 2σ`"
 >
@@ -305,36 +306,69 @@
 > - Service layer tách: ml_engine, feature_lookup, risk_service, forecast_service, analytics_service
 > - SQLAlchemy ORM, Pydantic validation, Loguru logging"
 >
-> "**Flow predict realtime:**
+> "**Điểm em cần nói rõ:** hệ thống không bịa dữ liệu realtime. Với mỗi bệnh, backend luôn lấy **tuần mới nhất thật sự có dữ liệu**:
+> - Flu: tuần mới nhất từ WHO FluNet sau khi pipeline sync, ví dụ 2026-W21.
+> - Dengue: tuần mới nhất từ OpenDengue v1.3 batch, ví dụ 2023-W36.
+> - Nếu user chọn ngoài phạm vi dữ liệu, API trả `data_coverage.warning` để FE hiện cảnh báo."
+>
+> "**Flow dự đoán khi user click một quốc gia:**
 > ```
 > User clicks Brazil dengue trên dashboard
 >   ↓
-> Frontend: GET /forecast/dengue/BRA/nowcast
+> Frontend gọi API: GET /forecast/dengue/BRA/nowcast
 >   ↓
 > Backend forecast_service:
->   1. Query feature_snapshots → tìm latest week có data = 2023-W36
->   2. Load features dict từ JSONB
->   3. Loop h=1..4: predict(feature_vector) → log scale
->   4. expm1() → predicted_cases
->   5. Build DataCoverage warning ('Nowcast dengue OpenDengue v1.3...')
->   6. Trả ForecastResponse JSON
+>   1. Xác định latest available week theo disease/country
+>      - dengue/BRA → 2023-W36
+>      - flu/THA → tuần mới nhất có trong FluNet
+>   2. Query feature_snapshots theo (disease, iso3, year, week)
+>   3. Lấy cột features JSONB → dict feature vector
+>   4. ml_engine chọn model đúng bệnh + horizon h=1..4
+>   5. Model predict trên log scale
+>   6. expm1() đổi ngược về số ca dự đoán
+>   7. Classifier/risk_service trả Low/Medium/High + risk_probability
+>   8. Build DataCoverage warning nếu là nowcast/historical/out-of-range
+>   9. Trả ForecastResponse JSON
 >   ↓
-> Frontend render ECharts line chart
+> Frontend render ECharts line chart + badge cảnh báo dữ liệu
 > ```"
+>
+> "**Giải thích thuật ngữ:** FastAPI là web framework Python để tạo REST API. `REST endpoint` là URL backend cho FE gọi. `Pydantic` validate dữ liệu request/response. `Service layer` là lớp tách business logic khỏi router. `JSONB` là kiểu JSON trong PostgreSQL, dùng để lưu feature vector linh hoạt."
 
 ## Slide 18 — Database PostgreSQL — 16 bảng
 
-> "Database **16 bảng logic, 31 partition** theo năm cho 3 bảng lớn (disease_cases, weather_observations, predictions)."
+> "Database **16 bảng logic, 31 partition** theo năm cho 3 bảng lớn (`disease_cases`, `weather_observations`, `predictions`)."
 >
-> "Tại sao partition? Queries thường filter theo year range → partition pruning giảm scan từ 87K rows xuống ~6K/năm."
+> "**Partition không phải chia theo quốc gia.** Ở DB, partition là chia bảng lớn theo `iso_year`. Ví dụ query năm 2023 thì PostgreSQL chỉ đọc partition 2023 thay vì scan toàn bộ dữ liệu nhiều năm. Quốc gia vẫn là cột `iso3`, có khóa ngoại tới bảng `countries` và được dùng trong index/query/filter."
 >
-> "**4 bảng quan trọng nhất:**
-> - `disease_cases` (87K) — nguồn raw + log1p
-> - `feature_snapshots` (75K) — JSONB pre-computed features
-> - `predictions` (75K) — output ML có sẵn
-> - `risk_thresholds` (164) — q33/q67 per country để phân Low/Med/High"
+> "Tại sao partition theo năm? Dữ liệu là time-series theo tuần, các query thường lọc theo year/week → partition pruning giảm scan từ 87K rows xuống khoảng vài nghìn dòng/năm."
 >
-> "Tại sao dùng JSONB cho features? Flu 16 cols, dengue 15 cols — schema khác nhau. JSONB cho phép 1 bảng chung, backend load thẳng vào dict feed model.predict()."
+> "**Nhóm bảng quan trọng nhất:**
+> - `countries` — danh mục quốc gia, mã ISO3, vùng WHO, tọa độ centroid.
+> - `disease_cases` — số ca bệnh theo disease/country/year/week, gồm raw count và log1p.
+> - `weather_observations` — thời tiết theo country/year/week, lưu JSONB như temp, humidity, precip, solar.
+> - `feature_snapshots` — feature vector đã tính sẵn cho từng disease/country/week.
+> - `predictions` — kết quả model đã dự đoán, dùng cho map và historical view.
+> - `model_versions` / `model_evaluations` — metadata, artifact path và metric của model đang deploy."
+>
+> "**DB nhận dữ liệu mới như thế nào:**
+> ```
+> sync_flunet.py / sync_weather.py / OpenDengue batch
+>   ↓
+> disease_cases + weather_observations
+>   ↓
+> feature_builder.py tính lag/rolling/seasonality
+>   ↓
+> feature_snapshots
+>   ↓
+> batch_predict.py chạy model h=1..4
+>   ↓
+> predictions + pipeline_runs audit log
+> ```"
+>
+> "Tại sao dùng JSONB cho features? Flu có 16 feature, dengue có 15 feature, schema khác nhau. JSONB cho phép dùng 1 bảng `feature_snapshots` chung, backend load thẳng thành dict rồi feed vào `model.predict()`."
+>
+> "**Phân theo quốc gia làm ở bước nào?** Không partition DB theo quốc gia. Việc tách theo quốc gia xảy ra ở bước feature engineering: khi tạo lag dùng `groupby('iso3').shift()`, nên Brazil chỉ nhìn lịch sử Brazil, Thái Lan chỉ nhìn lịch sử Thái Lan. Trong DB, `iso3` là khóa để query/filter từng quốc gia."
 
 ## Slide 19 — MLOps Pipeline — APScheduler
 
@@ -344,15 +378,17 @@
 >
 > | Job | Schedule (ICT) | Mục đích |
 > |---|---|---|
-> | sync_flunet | Mon 10:00 | Pull WHO FluNet weekly |
-> | sync_weather | Daily 6:00 | Pull Open-Meteo 12 tuần |
-> | build_features | Mon 11:00 | Rebuild snapshots cả flu + dengue |
-> | batch_predict | Mon 11:30 | Predict latest week → predictions table |"
+> | sync_flunet | Mon 10:00 | Lấy ca cúm mới nhất từ WHO FluNet |
+> | sync_weather | Daily 6:00 | Lấy thời tiết Open-Meteo/ERA5 archive cho các tuần gần nhất |
+> | build_features | Mon 11:00 | Tính lại feature snapshots cho flu + dengue |
+> | batch_predict | Mon 11:30 | Dự đoán tuần mới nhất có data → ghi vào predictions |"
 >
 > "**Manual triggers** qua admin endpoint:
 > - `POST /admin/sync/build_features_dengue_nowcast` — đặc biệt cho OpenDengue batch release mới (không có realtime API)"
 >
-> "Pipeline error handling: subprocess timeout 30 phút, log stdout/stderr tail vào Loguru, admin endpoint trả 500 nếu fail → user gọi `/admin/scheduler/status` xem job lần cuối thành công khi nào."
+> "MLOps ở đây nghĩa là vận hành model sau khi train: tự động lấy data mới, build features, chạy inference, ghi log pipeline vào DB và có endpoint admin để kiểm tra."
+>
+> "Pipeline error handling: subprocess timeout 30 phút, log stdout/stderr tail vào Loguru, ghi `pipeline_runs` vào DB, admin endpoint trả 500 nếu fail → user gọi `/admin/scheduler/status` xem job lần cuối thành công khi nào."
 
 ## Slide 20 — Frontend React Dashboard — 3 trang
 
@@ -366,7 +402,7 @@
 > "**Page 2: DiseaseDetailPage** — chi tiết quốc gia
 > - 4-week Forecast chart (ECharts line với confidence interval)
 > - Historical picker: year + week để xem prediction quá khứ
-> - DataCoverage warning badge: 'realtime' (xanh) hoặc 'nowcast' (vàng) hoặc 'historical'
+> - DataCoverage warning badge: latest/nowcast/historical/out-of-range
 > - 52-week Trend chart (area chart)
 > - Summary cards: Predicted, Risk Level, Disease info"
 >
@@ -374,6 +410,21 @@
 > - Multi-horizon R² bar chart h=1..4
 > - Feature importance top 10
 > - Confusion matrix classifier"
+>
+> "**Flow FE gọi BE:**
+> ```
+> User chọn disease + week + country
+>   ↓
+> Zustand store lưu state UI
+>   ↓
+> React hook gọi /api/v1/risk-map hoặc /api/v1/forecast
+>   ↓
+> Backend trả JSON gồm prediction, risk, data_coverage
+>   ↓
+> FE vẽ map/chart bằng ECharts và hiện warning nếu dữ liệu không phải latest thật
+> ```"
+>
+> "**Giải thích thuật ngữ:** React là thư viện UI, TypeScript giúp kiểm tra kiểu dữ liệu, Vite là dev/build tool, ECharts là thư viện vẽ map và biểu đồ, Zustand là state management để lưu disease/year/week/country đang chọn."
 
 ## Slide 21 — Disease-aware state management (chốt 23/05)
 
@@ -389,11 +440,11 @@
 
 # PHẦN 5 — REALTIME / NOWCAST (3 phút)
 
-## Slide 22 — Realtime flu 2026
+## Slide 22 — Latest-data flu 2026
 
 > "**Đột phá nowcast** em làm trong Phase A (12-23/05):"
 >
-> "**Flu**: pull WHO FluNet realtime từ 2024 đến 2026-W21 hiện tại.
+> "**Flu**: sync dữ liệu mới nhất từ WHO FluNet pipeline, hiện có đến 2026-W21.
 > - Coverage: **163 quốc gia × 20 tuần (W02-W21/2026)**
 > - Build features → predict h=1..4 cho mỗi tuần
 > - User mở dashboard thấy ngay map 2026-W21 thật, không phải data 2019 cũ"

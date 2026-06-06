@@ -4,6 +4,17 @@
 
 Hệ thống tích hợp dữ liệu y tế toàn cầu (WHO FluNet, WHO Dengue) và dữ liệu khí hậu (ERA5/ECMWF) để dự báo nguy cơ dịch cúm và sốt xuất huyết theo tuần, cấp quốc gia. Pipeline gồm hai nhánh song song: **Regression** (dự báo số ca) và **Classification** (cảnh báo mức độ Low/Medium/High).
 
+## Tài liệu bảo vệ KLTN
+
+Bộ tài liệu trình bày mới nằm trong `docs/presentation/`:
+
+- [Pipeline ML và dữ liệu](docs/presentation/ml_pipeline.md)
+- [Kiến trúc hệ thống và dashboard](docs/presentation/system_architecture.md)
+- [MLOps trong phạm vi KLTN](docs/presentation/mlops.md)
+- [Q&A bảo vệ](docs/presentation/qa_defense.md)
+
+Thuật ngữ dashboard dùng nhất quán: **MỚI NHẤT** là tuần mới nhất hệ thống có prediction trong database; **BACKTEST** là tuần/năm quá khứ được chọn để mô phỏng hoặc kiểm chứng dự báo. Không gọi chung là realtime nếu dữ liệu bệnh không thật sự realtime.
+
 ---
 
 ## Mục lục
@@ -65,7 +76,7 @@ Hệ thống tích hợp dữ liệu y tế toàn cầu (WHO FluNet, WHO Dengue)
 | Database | PostgreSQL 15 |
 | ML | XGBoost 2.0, LightGBM 4.3, scikit-learn 1.6, Prophet |
 | Hyperparameter tuning | Optuna |
-| Dữ liệu khí hậu | ERA5 (ECMWF) — lịch sử · OpenWeatherMap — realtime |
+| Dữ liệu khí hậu | ERA5 (ECMWF) lịch sử · Open-Meteo/nguồn vận hành cho giai đoạn mới nhất |
 | Frontend | React, Tailwind CSS, Leaflet.js, Recharts |
 | Containerization | Docker, Docker Compose |
 
@@ -173,11 +184,11 @@ uvicorn app.main:app --reload --port 8000
 
 ### Chạy ML Notebook
 
-Notebook chính tại `KLTN_EpiWeather_ML_v5.ipynb`. Chạy trên **Google Colab** (khuyến nghị) hoặc Jupyter local:
+Notebook chính nên đối chiếu `KLTN_EpiWeather_ML_v6.ipynb` trước, sau đó dùng `KLTN_EpiWeather_ML_v5.ipynb` để xem pipeline h=1 và validation nền. Chạy trên **Google Colab** (khuyến nghị) hoặc Jupyter local:
 
 ```bash
 pip install jupyter xgboost lightgbm optuna prophet scikit-learn pandas numpy
-jupyter notebook KLTN_EpiWeather_ML_v5.ipynb
+jupyter notebook KLTN_EpiWeather_ML_v6.ipynb
 ```
 
 Mount Google Drive hoặc đặt dataset vào `data/processed/` trước khi chạy.
@@ -210,7 +221,7 @@ Tạo file `.env` từ `.env.example`:
 | `GET` | `/health` | Health check |
 | `GET` | `/api/v1/countries` | Danh sách quốc gia |
 | `GET` | `/api/v1/diseases` | Danh sách loại bệnh |
-| `POST` | `/api/v1/infer` | Dự báo nguy cơ (realtime) |
+| `POST` | `/api/v1/infer` | Dự báo nguy cơ từ feature input |
 | `GET` | `/api/v1/predictions` | Lịch sử dự báo |
 | `GET` | `/api/v1/risk` | Mức độ cảnh báo hiện tại |
 

@@ -1,216 +1,256 @@
-# Session 8: Multi-Horizon Forecasting (v6 Extension — h=1,2,3,4 tuần)
+# Session 8: Dự báo 4 tuần tiếp theo
 
-> **Mục tiêu thuyết trình:** Đây là **session bổ sung trong notebook v6** (chốt 21/05/2026, sau khi v5 hoàn tất Session 0-7). Đề tài yêu cầu "dự báo theo giai đoạn/mùa/tháng" → cần forecast multi-horizon, không chỉ h=1.
-
----
-
-## 1. Vì sao cần v6 — vấn đề của v5
-
-v5 chỉ predict **h=1** (tuần kế tiếp). Nhưng đề tài KLTN yêu cầu "dự báo dịch bệnh có thể diễn ra theo giai đoạn/mùa/tháng" → chỉ có h=1 không đủ.
-
-**Quan trắc viên y tế cần:**
-- Tuần này risk?
-- 2 tuần nữa risk?
-- 1 tháng nữa risk? → để chuẩn bị vaccine, giường bệnh
-
-→ Cần forecast trajectory **h=1, h=2, h=3, h=4 tuần**.
+> **Mục tiêu thuyết trình:** Giải thích vì sao dashboard có biểu đồ dự báo 4 tuần tới, các điểm dự báo đó được tạo ra như thế nào, và vì sao không chỉ dùng một mô hình dự báo tuần kế tiếp.
 
 ---
 
-## 2. 2 cách multi-horizon — em chọn cách nào
+## 1. Mạch nói chung
 
-| Cách | Mô tả | Ưu | Nhược |
+Các session trước chủ yếu dự báo cho tuần kế tiếp. Nhưng khi dùng dashboard, người xem thường không chỉ muốn biết tuần tới tăng hay giảm, mà còn muốn nhìn xu hướng trong vài tuần tiếp theo để chuẩn bị.
+
+Vì vậy Session 8 mở rộng bài toán thành dự báo 4 tuần tới:
+
+| Ký hiệu | Ý nghĩa |
+|---|---|
+| h=1 | Dự báo tuần kế tiếp |
+| h=2 | Dự báo sau 2 tuần |
+| h=3 | Dự báo sau 3 tuần |
+| h=4 | Dự báo sau 4 tuần |
+
+**Horizon** nghĩa là “mốc thời gian dự báo trong tương lai”. Trong file này, horizon h=4 nghĩa là dự báo số ca sau 4 tuần.
+
+Cách nói khi trình bày:
+
+“Session 8 phục vụ trực tiếp biểu đồ 4 tuần trên dashboard. Tại một tuần hiện tại, hệ thống tạo ra bốn dự báo: tuần sau, sau 2 tuần, sau 3 tuần và sau 4 tuần.”
+
+---
+
+## 2. Vì sao v5 chưa đủ?
+
+v5 chỉ có mô hình dự báo h=1, tức là tuần kế tiếp. Nhưng yêu cầu của đề tài là dự báo theo giai đoạn, nên chỉ một tuần là chưa đủ.
+
+Người dùng cần trả lời các câu hỏi như:
+
+1. Tuần tới nguy cơ tăng hay giảm?
+2. Hai tuần nữa tình hình có tiếp tục tăng không?
+3. Khoảng một tháng nữa xu hướng có đáng lo không?
+
+Vì vậy v6 thêm dự báo h=1, h=2, h=3, h=4.
+
+---
+
+## 3. Hai cách dự báo nhiều tuần
+
+| Cách | Giải thích | Ưu điểm | Hạn chế |
 |---|---|---|---|
-| **Recursive** | Predict h=1, dùng output làm input cho h=2... | Code đơn giản, 1 model | **Error propagation** — sai h=1 thì h=2,3,4 sai cấp số |
-| **Multi-horizon trực tiếp** ✅ | Train **4 model riêng**, mỗi model dùng feature **actual** | Tránh error compound, mỗi h tối ưu riêng | Train 4 model = 4× compute |
+| Dự báo lặp lại | Dự báo tuần 1, rồi lấy kết quả đó làm đầu vào để dự báo tuần 2 | Chỉ cần một mô hình | Nếu tuần 1 sai, lỗi có thể kéo sang tuần 2, 3, 4 |
+| Dự báo trực tiếp từng mốc | Huấn luyện riêng mô hình cho h=1, h=2, h=3, h=4 | Giảm lỗi cộng dồn | Cần huấn luyện nhiều mô hình hơn |
 
-→ **Em chọn multi-horizon trực tiếp.** Lý do: error propagation là vấn đề **critical với forecasting**. Nếu h=1 sai 10%, recursive feed vào h=2 → error compound thành 15-20%. Train riêng từng h dùng feature actual → error không cộng dồn.
+**Recursive** nghĩa là dự báo lặp lại: kết quả dự báo trước được đưa lại vào mô hình để dự báo bước sau.
 
----
+**Lỗi cộng dồn** nghĩa là sai số ở tuần trước làm các tuần sau sai theo. Ví dụ dự báo tuần 1 cao hơn thực tế, rồi lấy kết quả cao đó để dự báo tuần 2, thì tuần 2 cũng có thể bị kéo sai.
 
-## 3. Cell 8.1 — Build multi-horizon targets (flu)
+Notebook chọn cách **dự báo trực tiếp từng mốc**. Nghĩa là:
 
-```python
-def build_multi_horizon_targets(features_df, target_col, horizons=[1,2,3,4]):
-    """Cho mỗi (iso3, year, week), build 4 target: cases tại week+h."""
-    df = features_df.copy()
-    for h in horizons:
-        df[f'target_h{h}'] = df.groupby('iso3')[target_col].shift(-h)
-    # Drop rows không có target h=4 (cuối dataset)
-    df = df.dropna(subset=[f'target_h{h}' for h in horizons])
-    return df
+- Một mô hình riêng cho h=1.
+- Một mô hình riêng cho h=2.
+- Một mô hình riêng cho h=3.
+- Một mô hình riêng cho h=4.
 
-features_flu_h = build_multi_horizon_targets(features_flu, 'inf_log1p', [1,2,3,4])
-# Flu: 55,208 → 54,636 rows (drop 572 cuối dataset)
-```
+Cách nói khi trình bày:
 
-**Logic:**
-- Tại tuần W, target_h1 = cases tuần W+1, target_h2 = W+2, ..., target_h4 = W+4
-- Drop rows cuối không có target h=4 đầy đủ
+“Em không lấy dự báo tuần 1 để đoán tiếp tuần 2, vì như vậy lỗi có thể cộng dồn. Em huấn luyện riêng từng mốc dự báo để mỗi tuần tương lai được học trực tiếp từ dữ liệu thật trong quá khứ.”
 
 ---
 
-## 4. Cell 8.2 — Build multi-horizon targets (dengue)
+## 4. Cell 8.1 - Tạo mục tiêu dự báo 4 tuần cho cúm
+
+Tại mỗi dòng dữ liệu, notebook tạo thêm 4 cột mục tiêu:
+
+| Cột | Ý nghĩa |
+|---|---|
+| `target_h1` | Số ca tuần W+1 |
+| `target_h2` | Số ca tuần W+2 |
+| `target_h3` | Số ca tuần W+3 |
+| `target_h4` | Số ca tuần W+4 |
 
 ```python
-features_dengue_h = build_multi_horizon_targets(features_dengue, 'dengue_log1p', [1,2,3,4])
-# Dengue: 5,926 → 5,786 rows (drop 140)
-```
-
-Cùng logic. Dengue drop ít rows hơn (chỉ 140 vs 572) vì dataset đã nhỏ.
-
----
-
-## 5. Cell 8.3 — Walk-forward CV flu multi-horizon
-
-```python
-flu_results = {}
 for h in [1, 2, 3, 4]:
-    cv_results = run_cv(
-        model_fn=lambda: LGBMRegressor(**LGBM_FLU_BEST_PARAMS),  # giữ params từ v1
-        features_df=features_flu_h,
-        target_col=f'target_h{h}',
-        splits=walk_forward_splits(features_flu_h),
-    )
-    flu_results[h] = cv_results
+    df[f'target_h{h}'] = df.groupby('iso3')[target_col].shift(-h)
 ```
 
-**Tại sao giữ `LGBM_FLU_BEST_PARAMS` từ v1, không tune lại:**
-- Optuna v1 (Session 6.9) đã tune cho feature set hiện tại (16 features)
-- Multi-horizon **dùng CÙNG feature set** → optimal params giống
-- Tune lại sẽ tốn ~60×4 = 240 trials/disease, improvement marginal (< 0.005 R²) — **không hiệu quả thời gian**
+`shift(-h)` nghĩa là lấy giá trị ở tương lai h tuần để làm nhãn huấn luyện. Việc này chỉ dùng khi tạo dữ liệu huấn luyện, không phải lúc dự báo thật.
+
+Vẫn phải dùng `groupby('iso3')` để không lấy nhầm tương lai của quốc gia khác.
+
+Cách nói khi trình bày:
+
+“Tại một tuần W, em tạo nhãn cho tuần W+1 đến W+4. Khi huấn luyện, mô hình h=4 học cách dự báo số ca sau 4 tuần. Khi chạy thật, mô hình chỉ nhìn các đặc trưng hiện tại và cho ra dự báo tương ứng.”
 
 ---
 
-## 6. Cell 8.4 — Train final flu + save 4 pkl
+## 5. Cell 8.2 - Tạo mục tiêu dự báo 4 tuần cho dengue
+
+Dengue làm cùng logic như cúm, chỉ khác model cuối cùng là Random Forest thay vì LightGBM.
+
+Một số dòng cuối dữ liệu sẽ bị bỏ vì không có đủ tương lai để tạo `target_h4`. Ví dụ tuần cuối cùng của dữ liệu không thể biết sau 4 tuần là bao nhiêu nếu dữ liệu đã kết thúc.
+
+Cách nói khi trình bày:
+
+“Việc bỏ vài dòng cuối là bình thường. Muốn huấn luyện dự báo sau 4 tuần thì mỗi dòng phải có đủ số ca thật sau 4 tuần để làm đáp án.”
+
+---
+
+## 6. Cell 8.3 - Kiểm chứng nhiều mốc cho cúm
+
+Với cúm, notebook dùng LightGBM vì đây là mô hình tốt nhất đã chọn ở Session 6.
 
 ```python
-flu_models = {}
 for h in [1, 2, 3, 4]:
-    model = LGBMRegressor(**LGBM_FLU_BEST_PARAMS)
-    model.fit(features_flu_h[FLU_COLS], features_flu_h[f'target_h{h}'])
-    flu_models[h] = model
-    joblib.dump(model, MODELS_DIR / f'lgbm_flu_regressor_h{h}_v1.pkl')
+    model = LGBMRegressor(...)
+    model.fit(X_train, y_train_h)
 ```
 
-**4 artifacts mới (1.7 MB mỗi cái):**
-```
-lgbm_flu_regressor_h1_v1.pkl  → R² CV = 0.866
-lgbm_flu_regressor_h2_v1.pkl  → R² CV = 0.829
-lgbm_flu_regressor_h3_v1.pkl  → R² CV = 0.793
-lgbm_flu_regressor_h4_v1.pkl  → R² CV = 0.757
-```
+**Tham số** là các thiết lập của mô hình, ví dụ số cây, độ sâu của cây, tốc độ học. Ở session này, notebook giữ lại tham số tốt từ Session 6 vì bộ đặc trưng không thay đổi nhiều.
+
+Cách nói khi trình bày:
+
+“Với cúm, em giữ LightGBM vì Session 6 đã chứng minh đây là mô hình tốt nhất cho cúm. Sau đó em huấn luyện 4 bản LightGBM riêng cho 4 mốc dự báo.”
 
 ---
 
-## 7. Cell 8.5 — Walk-forward CV + train dengue multi-horizon
+## 7. Cell 8.4 - Lưu 4 mô hình cúm
 
-Cùng logic cho Random Forest dengue.
+Kết quả tạo 4 file mô hình:
 
-**4 artifacts mới (39.8 MB mỗi cái):**
-```
-rf_dengue_regressor_h1_v1.pkl  → R² CV = 0.929
-rf_dengue_regressor_h2_v1.pkl  → R² CV = 0.919
-rf_dengue_regressor_h3_v1.pkl  → R² CV = 0.909
-rf_dengue_regressor_h4_v1.pkl  → R² CV = 0.898
-```
+| File | Dự báo |
+|---|---|
+| `lgbm_flu_regressor_h1_v1.pkl` | Tuần kế tiếp |
+| `lgbm_flu_regressor_h2_v1.pkl` | Sau 2 tuần |
+| `lgbm_flu_regressor_h3_v1.pkl` | Sau 3 tuần |
+| `lgbm_flu_regressor_h4_v1.pkl` | Sau 4 tuần |
 
-Mỗi pkl kèm `_features.json` + `_metrics.json` (gồm h, R², RMSE, MAE, best_params, training_date, source_notebook=v6).
+Kết quả kiểm chứng:
+
+| Mốc | R² cúm |
+|---|---:|
+| h=1 | 0.8661 |
+| h=2 | 0.8293 |
+| h=3 | 0.7928 |
+| h=4 | 0.7573 |
+
+Cách nói khi trình bày:
+
+“Càng dự báo xa thì độ chính xác giảm dần. Đây là điều bình thường vì dự báo sau 4 tuần khó hơn dự báo tuần sau.”
 
 ---
 
-## 8. Cell 8.6 — Bảng so sánh R² theo horizon (final v6)
+## 8. Cell 8.5 - Kiểm chứng và lưu 4 mô hình dengue
 
-| h | Flu (LightGBM) | Dengue (Random Forest) | Lowe 2014 benchmark |
-|---|----------------|------------------------|---------------------|
-| 1 | **0.8661** | **0.9292** | 0.78-0.85 |
-| 2 | 0.8293 | 0.9191 | 0.70-0.78 |
-| 3 | 0.7928 | 0.9086 | 0.62-0.72 |
-| 4 | 0.7573 | 0.8981 | **0.55-0.68** |
+Với dengue, notebook dùng Random Forest vì đây là mô hình tốt nhất đã chọn ở Session 6.
 
-### Phát hiện 1: 8/8 horizon vượt benchmark Lowe et al 2014 Lancet ID
+| File | Dự báo |
+|---|---|
+| `rf_dengue_regressor_h1_v1.pkl` | Tuần kế tiếp |
+| `rf_dengue_regressor_h2_v1.pkl` | Sau 2 tuần |
+| `rf_dengue_regressor_h3_v1.pkl` | Sau 3 tuần |
+| `rf_dengue_regressor_h4_v1.pkl` | Sau 4 tuần |
 
-Paper reference cho dengue forecasting Brazil. **Cả 4 horizon flu + 4 horizon dengue đều vượt** — đây là contribution mạnh cho thesis.
+Kết quả kiểm chứng:
 
-### Phát hiện 2 — bất ngờ: Dengue degradation gentler hơn flu
+| Mốc | R² dengue |
+|---|---:|
+| h=1 | 0.9292 |
+| h=2 | 0.9191 |
+| h=3 | 0.9086 |
+| h=4 | 0.8981 |
 
-| Metric | Flu | Dengue |
+Cách nói khi trình bày:
+
+“Dengue giảm chậm hơn cúm khi dự báo xa hơn. Điều này có thể do dengue trong dữ liệu có độ trễ dài hơn và mẫu bệnh ổn định hơn ở các vùng nhiệt đới.”
+
+---
+
+## 9. Cell 8.6 - So sánh kết quả theo từng mốc
+
+| Mốc dự báo | Cúm LightGBM | Dengue Random Forest |
+|---|---:|---:|
+| h=1 | 0.8661 | 0.9292 |
+| h=2 | 0.8293 | 0.9191 |
+| h=3 | 0.7928 | 0.9086 |
+| h=4 | 0.7573 | 0.8981 |
+
+### Phát hiện 1: Dự báo xa hơn thì khó hơn
+
+Cả hai bệnh đều giảm R² từ h=1 đến h=4. Điều này hợp lý vì càng xa hiện tại, càng có nhiều yếu tố chưa biết.
+
+### Phát hiện 2: Dengue giảm chậm hơn cúm
+
+| Nội dung | Cúm | Dengue |
+|---|---:|---:|
+| R² h=1 | 0.8661 | 0.9292 |
+| R² h=4 | 0.7573 | 0.8981 |
+| Mức giảm | 0.1088 | 0.0311 |
+
+Giải thích dễ hiểu:
+
+1. Cúm thay đổi nhanh hơn theo mùa và theo hành vi con người.
+2. Dengue có độ trễ dài hơn vì liên quan đến muỗi và môi trường.
+3. Các đặc trưng dengue dùng nhiều tuần quá khứ nên vẫn còn tín hiệu khi dự báo xa hơn.
+
+### Phát hiện 3: Vì sao h=1 ở v6 thấp hơn v5?
+
+v5 chỉ cần dự báo tuần kế tiếp. v6 phải tạo đủ nhãn cho 4 tuần tương lai, nên phải bỏ một số dòng cuối dữ liệu không có đủ tương lai. Dữ liệu huấn luyện ít hơn một chút, nên h=1 của v6 có thể thấp hơn v5.
+
+Cách nói khi trình bày:
+
+“Đây là đánh đổi hợp lý. v5 tốt hơn một chút ở dự báo 1 tuần, nhưng v6 cho được cả chuỗi 4 tuần để hiển thị trên dashboard.”
+
+---
+
+## 10. So sánh v5 và v6
+
+| Nội dung | v5 | v6 |
 |---|---|---|
-| R² h=1 | 0.866 | 0.929 |
-| R² h=4 | 0.757 | 0.898 |
-| Δ R² total | 0.109 | 0.031 |
-| **Slope (Δ R²/horizon)** | **-0.036** | **-0.010** |
+| Số tuần dự báo | 1 tuần | 4 tuần |
+| Số mô hình dự báo cho mỗi bệnh | 1 | 4 |
+| Phục vụ biểu đồ 4 tuần | Chưa đủ | Đủ |
+| Độ chính xác h=1 | Cao hơn nhẹ | Thấp hơn nhẹ do bỏ bớt dòng cuối |
+| Giá trị thực tế | Dự báo ngắn hạn | Nhìn được xu hướng gần 1 tháng |
 
-Dengue degrade **chỉ 1/3.6 lần flu** — bất ngờ vì thông thường horizon dài thì R² giảm mạnh hơn.
-
-**Lý do em phân tích được:**
-
-1. **Lag dengue dài hơn flu rất nhiều** — features dùng lag 6-14 tuần (dengue) vs 1-7 tuần (flu). AR signal phủ xa hơn → h=4 vẫn nằm trong "vùng ảnh hưởng" của lag.
-
-2. **Pattern dengue endemic năm cả 12 tháng ở vùng nhiệt đới** — ít volatile theo tuần so với flu mùa đông Bắc bán cầu.
-
-3. **RF robust với noise hơn LGBM** — bagging average qua nhiều tree, variance thấp.
-
-→ **Insight epidemiological** document trong báo cáo Chapter 4.
-
-### Phát hiện 3: So với v5 (h=1)
-
-v5 R² h=1: **0.902** (flu), **0.937** (dengue) — cao hơn v6 h=1 (0.866, 0.929).
-
-**Vì sao v6 thấp hơn?** v6 phải drop rows cuối dataset (không có target h=4) → ít data hơn → R² thấp hơn 0.04 ở h=1.
-
-**Trade-off worth it:** v6 có forecast 4 tuần đầy đủ, v5 chỉ có 1 tuần.
+Kết luận: v6 cần thiết để đáp ứng yêu cầu dự báo theo giai đoạn và để frontend có đủ dữ liệu vẽ biểu đồ 4 tuần.
 
 ---
 
-## 9. So sánh tổng kết v5 vs v6
+## 11. Nếu giáo viên hỏi về tham chiếu nghiên cứu
 
-| Aspect | v5 (17/05/2026) | v6 (21/05/2026) |
-|---|---|---|
-| Horizon | h=1 only | **h=1, 2, 3, 4** |
-| Models per disease | 1 regressor + 1 classifier | **4 regressors + 1 classifier** |
-| Total artifacts | 4 pkl | **10 pkl** |
-| Flu R² h=1 | 0.902 | 0.866 (drop 0.04 do less data) |
-| Dengue R² h=1 | 0.937 | 0.929 |
-| Forecast trajectory | ❌ Chỉ 1 tuần | ✅ **4 tuần đầy đủ** |
-| Deploy production | ❌ Không serve forecast | ✅ Backend `/forecast/{disease}/{iso3}/nowcast` |
+Trong file cũ có nhắc Lowe et al. 2014 như một mốc tham khảo cho dự báo dengue.
 
-→ **v6 là step bắt buộc** để đáp ứng đề tài "dự báo theo giai đoạn".
+**Benchmark** nghĩa là mốc tham khảo để so sánh. Nó không có nghĩa là hai bài toán giống hệt nhau, mà chỉ giúp đặt kết quả của mình vào bối cảnh.
+
+Cách nói an toàn:
+
+“Em dùng các công trình trước như một mốc tham khảo, nhưng không nói rằng so sánh là tuyệt đối giống nhau, vì dữ liệu, quốc gia và cách chia tập có thể khác. Điểm chính là kết quả của mô hình nằm trong mức hợp lý và không thấp bất thường so với các hướng nghiên cứu trước.”
 
 ---
 
-## Key Insights Session 8 (slide thuyết trình)
+## 12. Ý chính Session 8
 
-1. **Multi-horizon trực tiếp thay vì recursive** — tránh error propagation. Train 4 model riêng dùng feature actual.
-2. **8/8 horizon vượt benchmark Lowe et al 2014** — paper reference cho dengue forecasting. Contribution mạnh cho thesis.
-3. **Dengue degradation gentler 3.6× flu** — insight epidemiological em phân tích được: lag dài + endemic stable + RF robust.
-4. **Giữ best_params từ v1, không Optuna lại** — feature set không đổi, optimal params giống. Document principle "don't tune when not needed".
-5. **v6 R² h=1 thấp hơn v5 0.04 do drop rows cuối** — trade-off worth it để có forecast 4 tuần đầy đủ cho production.
+1. Session 8 mở rộng từ dự báo 1 tuần sang dự báo 4 tuần.
+2. `h=1,2,3,4` là các mốc dự báo trong tương lai.
+3. Notebook dùng 4 mô hình riêng để tránh lỗi cộng dồn.
+4. Cúm giảm rõ hơn khi dự báo xa; dengue giữ ổn định hơn.
+5. v6 thấp hơn v5 nhẹ ở h=1 nhưng đổi lại có chuỗi dự báo đủ 4 tuần.
+6. Kết quả phục vụ trực tiếp biểu đồ “Dự báo 4 tuần tới” trên dashboard.
 
 ---
 
-## Câu nói thuyết trình cho Session 8
+## 13. Câu nói thuyết trình cho Session 8
 
-> "Sau v5 hoàn tất Session 0-7, em mở rộng thành **multi-horizon v6** — train **4 model riêng** cho h=1, 2, 3, 4 tuần."
+> “Session 8 là phần mở rộng để dashboard có biểu đồ dự báo 4 tuần tới. Trước đó mô hình chủ yếu dự báo tuần kế tiếp, còn ở đây em tạo dự báo cho h=1, h=2, h=3 và h=4.”
 >
-> "**Lý do**: đề tài yêu cầu 'dự báo theo giai đoạn/mùa/tháng' — chỉ có h=1 không đủ. Quan trắc viên y tế cần biết 1 tháng nữa risk như thế nào để chuẩn bị vaccine, giường bệnh."
+> “Em không dùng cách dự báo lặp lại vì nếu tuần 1 sai thì sai số có thể kéo sang tuần 2, tuần 3 và tuần 4. Thay vào đó, em huấn luyện riêng từng mô hình cho từng mốc dự báo.”
 >
-> "Em chọn cách **multi-horizon trực tiếp** thay vì recursive. **Recursive có error propagation**: sai h=1 thì feed vào h=2, error compound. **Train 4 model riêng dùng feature actual** → error không cộng dồn."
+> “Kết quả cho thấy càng dự báo xa thì độ chính xác giảm, điều này là bình thường. Với cúm, R² giảm từ khoảng 0.866 ở tuần 1 xuống 0.757 ở tuần 4. Với dengue, R² giảm ít hơn, từ khoảng 0.929 xuống 0.898.”
 >
-> [CHUYỂN SLIDE — bảng kết quả]
->
-> "Bảng R² qua 4 horizon:
-> - Flu h=1: **0.866**, h=4: 0.757
-> - Dengue h=1: **0.929**, h=4: **0.898**"
->
-> [NHẤN MẠNH] "**8 trên 8 horizon vượt benchmark Lowe et al 2014 Lancet ID** — paper reference cho dengue forecasting Brazil. Đặc biệt h=4: flu 0.757, dengue 0.898 — gấp **1.3× Lowe baseline**."
->
-> "**Phát hiện bất ngờ**: dengue degradation **gentler hơn flu** — dengue mất 0.010 R²/horizon, flu mất 0.036/horizon. Lý do em phân tích được:
-> 1. Lag dengue dài 6-14 tuần phủ xa hơn flu 1-7 tuần
-> 2. Pattern dengue endemic năm cả 12 tháng ở vùng nhiệt đới
-> 3. RF robust với noise hơn LGBM"
->
-> "Đây là **insight epidemiological** em document trong báo cáo Chương 4."
->
-> [NẾU HỎI: Sao không Optuna tune lại multi-horizon?]
-> > "Optuna v1 đã tune cho feature set 16-feature. Multi-horizon dùng **cùng feature set** → optimal params giống. Tune lại tốn 60×4 = 240 trials/disease, improvement marginal < 0.005 R². Em document principle 'don't tune when not needed' — không tốn compute khi không hiệu quả."
+> “Kết luận là v6 cần thiết cho yêu cầu dự báo theo giai đoạn. Dù h=1 thấp hơn v5 nhẹ do phải bỏ một số dòng cuối, v6 có giá trị hơn cho giao diện vì tạo được chuỗi dự báo 4 tuần.”

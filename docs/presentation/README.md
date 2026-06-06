@@ -1,9 +1,36 @@
-# Thuyết trình Pipeline ML — EpiWeather KLTN (Notebook v5 + v6)
+# Thuyết trình quy trình ML - EpiWeather KLTN (Notebook v5 + v6)
+
+> **Cách đọc cho demo lần 1:**
+>
+> - Demo ngày mai nên tập trung vào giao diện: bản đồ rủi ro, bộ lọc bệnh/năm/tuần, MỚI NHẤT/BACKTEST, chi tiết quốc gia, biểu đồ dự báo 4 tuần và danh sách cảnh báo.
+> - Phần ML chi tiết nằm ở các file từng buổi: [session_1_load.md](session_1_load.md) đến [session_8_multi_horizon.md](session_8_multi_horizon.md). Chỉ mở khi giảng viên hỏi sâu về dữ liệu, đặc trưng hoặc mô hình.
+> - [ml_pipeline.md](ml_pipeline.md) chỉ là bản tóm tắt để đối chiếu với notebook, tránh nói sai nguồn dữ liệu, đặc trưng, mô hình và chỉ số.
+> - [system_architecture.md](system_architecture.md) là file nên đọc chính khi demo giao diện: bài toán, cơ sở dữ liệu, API, giao diện và hai chế độ MỚI NHẤT/BACKTEST.
+> - [mlops.md](mlops.md) dùng khi giảng viên hỏi mô hình chạy như thế nào, chạy khi nào và kết quả lưu vào đâu.
+> - [qa_defense.md](qa_defense.md) dùng để luyện trả lời câu hỏi hội đồng.
+>
+> Thuật ngữ thống nhất: **MỚI NHẤT** là tuần mới nhất hệ thống có dự báo; **BACKTEST** là chọn tuần/năm quá khứ để mô phỏng hoặc kiểm chứng dự báo. Không gọi chung là realtime nếu dữ liệu bệnh không thật sự cập nhật theo thời gian thực.
 
 > **Giọng văn:** Mình đang nói chuyện trực tiếp với người chấm điểm — giả định họ chưa biết gì về dự án.
 > Đọc như nghe thuyết trình. Không phải tài liệu kỹ thuật để tự đọc.
 >
-> **Notebook v5/v6 có đúng 8 session làm việc** (Session 0 là setup môi trường, không tính). Mỗi session độc lập, ghi output ra CSV → restart Colab không phải chạy lại từ đầu.
+> **Notebook v5/v6 có đúng 8 session làm việc** (Session 0 là phần chuẩn bị môi trường, không tính). Mỗi session độc lập, ghi kết quả ra CSV nên nếu Colab bị ngắt thì không phải chạy lại từ đầu.
+
+---
+
+## Kịch bản demo giao diện lần 1
+
+Nếu thời gian demo ngắn, nên đi theo thứ tự này:
+
+1. Mở trang chính và nói bài toán: dashboard hỗ trợ phân tích nguy cơ dịch bệnh theo tuần, không phải website nghiệp vụ thông thường.
+2. Chọn bệnh flu/dengue để cho thấy mỗi bệnh có dữ liệu và mô hình riêng.
+3. Giải thích badge **MỚI NHẤT**: đây là tuần mới nhất hệ thống có dự báo trong cơ sở dữ liệu, không cam kết là thời gian thực ngoài đời.
+4. Chọn một tuần/năm quá khứ và bấm **Xem tuần đã chọn** để chuyển sang **BACKTEST**: mô phỏng lại dự báo ở quá khứ để kiểm chứng.
+5. Chọn một quốc gia trên bản đồ: trình bày `predicted_cases` là số ca dự báo, `risk_level` là mức rủi ro dùng cho màu bản đồ và cảnh báo.
+6. Mở biểu đồ dự báo 4 tuần: liên hệ với Session 8, hệ thống có 4 mô hình riêng cho h=1 đến h=4.
+7. Nếu bị hỏi mô hình chạy ở đâu: nói notebook huấn luyện và xuất `.pkl`, backend nạp `.pkl`, batch predict ghi kết quả vào database, frontend chỉ đọc API.
+
+Phần ML chi tiết chỉ mở khi bị hỏi sâu. Khi đó đọc theo session tương ứng thay vì đọc `ml_pipeline.md` dài.
 
 ---
 
@@ -15,27 +42,27 @@ Nghe đơn giản, nhưng dưới bề mặt có nhiều thứ phức tạp:
 - Dữ liệu đến từ **4 nguồn khác nhau**, định dạng khác nhau, độ phủ khác nhau
 - **163 quốc gia** sau khi merge, mỗi nước có mùa bệnh khác nhau (bán cầu Bắc đỉnh tuần 6, bán cầu Nam đỉnh tuần 28)
 - Dữ liệu thời tiết ở dạng **lưới địa lý 721×1440 điểm** (0.25°), không phải theo quốc gia
-- Phải làm **CẢ HAI bài toán**: dự báo số ca (Regression) và phân loại mức nguy cơ (Classification Low/Medium/High)
+- Phải làm **cả hai bài toán**: dự báo số ca và phân loại mức nguy cơ Low/Medium/High
 - Phải forecast **multi-horizon h=1..4 tuần** (Session 8) cho ứng dụng thực tế
 
 ---
 
-## Approach v5+v6 — Hybrid Regression + Classification + Multi-horizon
+## Cách làm v5+v6 - dự báo số ca, phân mức rủi ro và dự báo 4 tuần
 
-**v5 (chốt 16/05/2026):** Hybrid Regression + Classification cho h=1.
-**v6 (chốt 21/05/2026):** Mở rộng multi-horizon h=1, 2, 3, 4 tuần.
+**v5 (chốt 16/05/2026):** dự báo số ca + phân mức rủi ro cho h=1.
+**v6 (chốt 21/05/2026):** mở rộng sang dự báo h=1, 2, 3, 4 tuần.
 
-**Nhánh A — Regression** (dự báo số ca, log1p):
-- Models so sánh: Naive baseline, Prophet, XGBoost, LightGBM, Random Forest
-- Metrics: RMSE, MAE, R²
+**Nhánh A - dự báo số ca**:
+- Các mô hình so sánh: Naive baseline, Prophet, XGBoost, LightGBM, Random Forest
+- Chỉ số đánh giá: RMSE, MAE, R²
 - Champion: **LightGBM cho flu**, **Random Forest cho dengue**
 
-**Nhánh B — Classification** (phân loại mức nguy cơ):
+**Nhánh B - phân mức rủi ro**:
 - Model: XGBClassifier (multi:softprob, 3 lớp)
 - Label: Endemic Channel — `Low: < baseline`, `Medium: baseline → baseline+2σ`, `High: ≥ baseline+2σ` (Bortman 1999, WHO EWARS Technical Guide 2012)
 - Metrics: macro-F1, AUC OvR, Precision/Recall per class
 
-**Validation scheme:** Walk-forward Cross-Validation 6 folds (val_year 2014, 2015, ..., 2019) + **2022 hold-out** (post-COVID, Session 7).
+**Cách kiểm chứng:** kiểm chứng theo thời gian 6 lần (các năm 2014, 2015, ..., 2019) + **năm 2022 giữ lại để kiểm tra riêng** (sau COVID, Session 7).
 
 ---
 
@@ -100,7 +127,7 @@ SESSION 8 — MULTI-HORIZON v6
 | [session_4_eda.md](session_4_eda.md) | 4 | EDA + CCF lag (đóng góp khoa học) | log1p decision, lag tối ưu flu/dengue, hemisphere phase shift |
 | [session_5_features.md](session_5_features.md) | 5 | Feature engineering + Endemic Channel labels | `features_flu_v1.csv` (54K × 16), `features_dengue_v1.csv` (5.7K × 15) |
 | [session_6_training.md](session_6_training.md) | 6 | Train 5 regressors + 1 classifier + walk-forward CV + Optuna | 4 .pkl models v1 + metrics JSON |
-| [session_7_validation.md](session_7_validation.md) | 7 | Validation độc lập 2022 (post-COVID hold-out) | R² flu 0.80, dengue 0.87, generalize được |
+| [session_7_validation.md](session_7_validation.md) | 7 | Kiểm chứng độc lập bằng năm 2022 | R² flu 0.80, dengue 0.87, áp dụng được trên năm giữ lại |
 | [session_8_multi_horizon.md](session_8_multi_horizon.md) | 8 | **v6 extension** — Multi-horizon h=1..4 tuần | 8 .pkl (4 flu + 4 dengue), 8/8 vượt Lowe 2014 |
 
 **Tài liệu phụ:**
@@ -109,7 +136,7 @@ SESSION 8 — MULTI-HORIZON v6
 |---|---|
 | [hanh_trinh_cai_thien.md](hanh_trinh_cai_thien.md) | Hành trình v1 → v2 → v3 → v4 → v5 → v6 với rationale mỗi bước |
 | [kich_ban_thuyet_trinh.md](kich_ban_thuyet_trinh.md) | Kịch bản nói chi tiết khi thuyết trình GVHD (v5 + bổ sung v6) |
-| [../thuyet_trinh_bao_cao.md](../thuyet_trinh_bao_cao.md) | Kịch bản thuyết trình tổng thể 25 phút (v5+v6 + production) |
+| [../thuyet_trinh_bao_cao.md](../thuyet_trinh_bao_cao.md) | Kịch bản thuyết trình tổng thể 25 phút, tài liệu cũ hơn nên cần đọc chọn lọc |
 | [../chi_tiet_he_thong.md](../chi_tiet_he_thong.md) | Chi tiết hệ thống đầy đủ: dataset, DB, BE, FE |
 | [../huong_dan_su_dung.md](../huong_dan_su_dung.md) | Hướng dẫn dùng dashboard cho end-user |
 
@@ -117,7 +144,7 @@ SESSION 8 — MULTI-HORIZON v6
 
 ## Kết quả cuối cùng
 
-### Bảng so sánh Regression v5 (mean R² qua 6 folds walk-forward CV, h=1)
+### Bảng so sánh dự báo số ca v5 (R² trung bình qua 6 lần kiểm chứng theo thời gian, h=1)
 
 | Model | Flu R² | Dengue R² |
 |-------|--------|-----------|
@@ -139,7 +166,7 @@ SESSION 8 — MULTI-HORIZON v6
 
 **8/8 horizon vượt benchmark Lowe et al 2014 Lancet ID.**
 
-### Validation 2022 hold-out (Session 7)
+### Kiểm chứng năm 2022 giữ lại (Session 7)
 
 | Model | Metric | CV 2014-2019 | 2022 hold-out | Δ |
 |---|---|---|---|---|
@@ -148,7 +175,7 @@ SESSION 8 — MULTI-HORIZON v6
 
 → **Cả 2 model generalize được** cho năm post-COVID chưa thấy.
 
-### Bảng Classification (XGBClassifier macro-F1)
+### Bảng phân mức rủi ro (XGBClassifier macro-F1)
 
 | Disease | macro-F1 | Đạt mục tiêu? |
 |---------|----------|---------------|

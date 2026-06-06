@@ -1,181 +1,185 @@
-# Session 7: Validation độc lập 2022 (Post-COVID Hold-out) (Notebook v5/v6)
+# Session 7: Kiểm chứng độc lập bằng năm 2022
 
-> **Mục tiêu thuyết trình:** Walk-forward CV (Session 6) đã rigorous, nhưng val_year 2014-2019 vẫn nằm trong training era. Em cần test **generalization thực sự** trên năm **chưa thấy bao giờ** — chọn 2022 vì là năm đầu tiên hậu COVID, hành vi flu/dengue đã normalize lại.
-
----
-
-## 1. Vì sao 2022 hold-out, không 2021 hay 2023?
-
-| Năm | Lý do dùng / loại |
-|---|---|
-| 2020 | ❌ Bị NPI distortion (flu giảm 99%) — loại từ EDA |
-| 2021 | ❌ Vẫn còn NPI residual + dengue dropping → noise vẫn cao |
-| **2022** | ✅ **NPI relaxed, flu/dengue normalize lại** — test generalization fair |
-| 2023+ | Dữ liệu chưa đủ stable lúc làm thesis (5/2026) |
-
-→ 2022 là **first clean year** post-COVID → ideal hold-out.
+> **Mục tiêu thuyết trình:** Trả lời câu hỏi của giáo viên: “Làm sao biết mô hình không chỉ học tốt trên dữ liệu cũ?”  
+> Câu trả lời: ngoài kiểm chứng theo thời gian ở Session 6, em còn giữ riêng năm 2022 để kiểm tra lại trên dữ liệu mới hơn, không dùng năm này để huấn luyện chính.
 
 ---
 
-## 2. Cell 7.A — Download ERA5 2022 (documentation)
+## 1. Mạch nói chung
 
-Lặp lại quy trình Session 2 cho năm 2022:
-1. Download NetCDF 12 tháng × 17 biến từ CDS API (~600MB)
-2. KD-tree map sang iso3 (Natural Earth 50m, **cùng centroid** với 2010-2019)
-3. Aggregate weekly + compute derived vars (humidity, dewpoint)
-4. Export `era5_weekly_2022_final.csv` (1.2MB)
+Ở Session 6, em đã kiểm chứng mô hình bằng cách huấn luyện trên các năm trước và kiểm tra trên năm sau. Tuy nhiên, các năm 2014-2019 vẫn nằm trong giai đoạn lịch sử dùng để phát triển mô hình. Vì vậy Session 7 làm thêm một bước kiểm tra độc lập hơn: dùng năm 2022 làm năm giữ lại.
 
-**Đã chạy ngày 5/5/2026** (trước notebook v5, giai đoạn validation tuần 3).
+**Hold-out** nghĩa là “giữ riêng một phần dữ liệu không cho mô hình học”, sau đó dùng phần đó để kiểm tra. Trong session này, năm 2022 là phần hold-out.
+
+Cách nói khi trình bày:
+
+“Em dùng năm 2022 như một bài kiểm tra cuối. Mô hình đã được xây dựng từ dữ liệu trước đó, sau đó em đưa năm 2022 vào để xem khi gặp dữ liệu mới hơn thì kết quả còn ổn không.”
 
 ---
 
-## 3. Cell 7.1 — Build features 2022 flu
+## 2. Vì sao chọn năm 2022?
+
+| Năm | Cách xử lý | Lý do |
+|---|---|---|
+| 2020 | Không dùng làm kiểm chứng chính | COVID làm hành vi phòng bệnh, đi lại, đeo khẩu trang và báo cáo ca bệnh thay đổi mạnh |
+| 2021 | Không dùng làm kiểm chứng chính | Vẫn còn ảnh hưởng COVID, đặc biệt với cúm |
+| 2022 | Dùng làm năm kiểm chứng riêng | Phù hợp hơn để kiểm tra mô hình sau giai đoạn COVID nặng |
+| 2023+ | Chưa dùng làm kiểm chứng chính trong bản này | Dữ liệu chưa đồng nhất tại thời điểm làm notebook |
+
+Cách nói khi trình bày:
+
+“Em không chọn 2020-2021 vì đây là giai đoạn quá đặc biệt. Với cúm, số ca có thể giảm mạnh không phải vì quy luật bình thường của bệnh, mà do khẩu trang, giãn cách và thay đổi hành vi. Vì vậy em chọn 2022 để kiểm tra mô hình trên một năm mới hơn nhưng ít bất thường hơn.”
+
+---
+
+## 3. Cell 7.A - Chuẩn bị thời tiết ERA5 năm 2022
+
+Notebook tải lại dữ liệu thời tiết ERA5 cho năm 2022, sau đó xử lý theo cùng cách như các năm huấn luyện.
+
+**ERA5** là bộ dữ liệu thời tiết toàn cầu. Trong đồ án này, ERA5 cung cấp các biến như nhiệt độ, độ ẩm, lượng mưa, bức xạ mặt trời.
+
+Các bước chính:
+
+1. Tải dữ liệu thời tiết năm 2022.
+2. Gán dữ liệu thời tiết về từng quốc gia.
+3. Gom dữ liệu theo tuần.
+4. Tạo các biến thời tiết cần thiết như độ ẩm và điểm sương.
+5. Lưu thành file thời tiết tuần cho năm 2022.
+
+Cách nói khi trình bày:
+
+“Để kiểm tra năm 2022 công bằng, em không dùng lại dữ liệu thời tiết cũ. Em tải và xử lý riêng thời tiết năm 2022, sau đó đưa qua cùng quy trình tạo đặc trưng như Session 5.”
+
+---
+
+## 4. Cell 7.1 - Tạo đặc trưng cúm năm 2022
+
+Để dự báo năm 2022, mô hình cần các đặc trưng giống lúc huấn luyện: lịch sử ca bệnh, mùa vụ, bán cầu và thời tiết có độ trễ.
+
+**Warmup** nghĩa là phần dữ liệu quá khứ cần có trước năm dự báo để tính các độ trễ. Ví dụ nếu cần thời tiết trễ 7 tuần, thì đầu năm 2022 phải có dữ liệu cuối năm 2021 để tính đủ đặc trưng.
 
 ```python
-# Cùng pipeline Session 5 nhưng cho năm 2022
-# CẦN warmup data từ 2021 để tính lag (max lag = 7 tuần)
 master_2022 = master[master['iso_year'].isin([2021, 2022])].copy()
 features_2022_flu = build_features(master_2022, FLU_FEATURE_CONFIG)
 features_2022_flu = features_2022_flu[features_2022_flu['iso_year'] == 2022]
 ```
 
-**Output:** features 2022 flu — **~5,800 rows**, 130 nước.
+Kết quả: tạo được bộ đặc trưng cúm năm 2022 cho khoảng 130 quốc gia.
+
+Cách nói khi trình bày:
+
+“Với cúm, em lấy thêm dữ liệu cuối năm 2021 để tính các biến độ trễ cho đầu năm 2022. Sau khi tính xong, em chỉ giữ lại các dòng thuộc năm 2022 để kiểm chứng.”
 
 ---
 
-## 4. Cell 7.2 — Build features 2022 dengue
+## 5. Cell 7.2 - Tạo đặc trưng sốt xuất huyết năm 2022
 
-Cùng logic, nhưng dengue cần **warmup 18 tuần** (max lag 16 + buffer 2) → cần data từ 2021-W35 trở về sau.
+Sốt xuất huyết cần thời gian warmup dài hơn cúm vì các độ trễ thời tiết dài hơn, có biến lên đến 16 tuần.
 
-**Vấn đề:** OpenDengue lúc đó chỉ có training period 2015-2019 → cần load thêm batch 2020-2021 đã được prep lúc nowcast extension.
+Vì vậy, để dự báo đầu năm 2022, cần dữ liệu từ cuối năm 2021. Nếu thiếu phần này, các tuần đầu năm 2022 sẽ bị thiếu đặc trưng.
 
-**Output:** features 2022 dengue — **~800 rows**, 26 nước (subset nhiệt đới còn report active 2022).
+Kết quả: tạo được bộ đặc trưng dengue năm 2022 cho khoảng 26 quốc gia.
+
+Cách nói khi trình bày:
+
+“Sốt xuất huyết cần nhìn xa hơn về quá khứ vì thời tiết ảnh hưởng đến muỗi trước, rồi sau đó mới thể hiện thành ca bệnh. Do đó phần warmup của dengue dài hơn flu.”
 
 ---
 
-## 5. Cell 7.3 — Predict regression + evaluate 2022
+## 6. Cell 7.3 - Dự báo số ca trên năm 2022
+
+Notebook nạp lại hai mô hình đã chọn ở Session 6:
+
+| Bệnh | Mô hình dùng để dự báo số ca |
+|---|---|
+| Cúm | LightGBM |
+| Sốt xuất huyết | Random Forest |
+
+Sau đó dự báo trên bộ đặc trưng 2022 và so sánh với số ca thực tế.
 
 ```python
-# Load champion models v1
-lgbm_flu    = joblib.load(MODELS_DIR / 'lgbm_flu_regressor_v1.pkl')
-rf_dengue   = joblib.load(MODELS_DIR / 'rf_dengue_regressor_v1.pkl')
-
-# Predict 2022 hold-out
-y_pred_flu    = lgbm_flu.predict(features_2022_flu[FLU_COLS])
-y_pred_dengue = rf_dengue.predict(features_2022_dengue[DENGUE_COLS])
-
-# Evaluate
-flu_metrics    = compute_metrics(y_true_flu, y_pred_flu)
-dengue_metrics = compute_metrics(y_true_dengue, y_pred_dengue)
+lgbm_flu = joblib.load(MODELS_DIR / 'lgbm_flu_regressor_v1.pkl')
+rf_dengue = joblib.load(MODELS_DIR / 'rf_dengue_regressor_v1.pkl')
 ```
 
-### Kết quả 2022 hold-out (regression)
+### Kết quả chính
 
-| Disease | R² CV (Session 6) | R² 2022 hold-out | RMSE 2022 |
-|---|---|---|---|
-| Flu | 0.902 | **~0.78-0.82** | ~0.85 |
-| Dengue | 0.936 | **~0.85-0.88** | ~0.78 |
+| Bệnh | R² kiểm chứng Session 6 | R² năm 2022 | Ý nghĩa |
+|---|---:|---:|---|
+| Cúm | khoảng 0.902 | khoảng 0.78-0.82 | Giảm nhẹ nhưng vẫn dùng được |
+| Sốt xuất huyết | khoảng 0.936 | khoảng 0.85-0.88 | Giảm nhẹ, vẫn khá ổn |
 
-**Note:** Số chính xác có thể fluctuate ±0.02 tùy random seed. Quan trọng là **pattern degradation**:
-- Cả 2 model **drop ~0.05-0.10 R²** so với CV
-- Trong phạm vi acceptable → confirm **model generalize được** cho năm chưa thấy
+**R²** là chỉ số cho biết mô hình giải thích được bao nhiêu phần biến động dữ liệu. R² càng gần 1 càng tốt.
+
+Cách nói khi trình bày:
+
+“Khi đưa sang năm 2022, kết quả có giảm so với kiểm chứng trong giai đoạn cũ. Điều này là bình thường vì năm mới có thể khác dữ liệu huấn luyện. Quan trọng là mô hình không sụp hoàn toàn, vẫn giữ được mức đánh giá chấp nhận được.”
 
 ---
 
-## 6. Cell 7.4 — Predict classification + evaluate 2022
+## 7. Cell 7.4 - Kiểm tra phân mức rủi ro năm 2022
 
-```python
-# Load classifier
-xgb_flu_cls    = joblib.load(MODELS_DIR / 'xgb_flu_classifier_v1.pkl')
-xgb_dengue_cls = joblib.load(MODELS_DIR / 'xgb_dengue_classifier_v1.pkl')
+Ngoài số ca, dashboard còn cần mức rủi ro Low, Medium, High. Vì vậy notebook cũng kiểm tra mô hình phân loại rủi ro trên năm 2022.
 
-# Predict labels
-y_cls_flu    = xgb_flu_cls.predict(features_2022_flu)
-y_cls_dengue = xgb_dengue_cls.predict(features_2022_dengue)
-```
+**Macro-F1** là chỉ số trung bình F1 của ba lớp Low, Medium, High. Chỉ số này phù hợp vì ta không muốn mô hình chỉ dự đoán tốt lớp nhiều nhất mà bỏ qua lớp High.
 
-### Kết quả 2022 hold-out (classification)
+| Bệnh | Macro-F1 Session 6 | Macro-F1 năm 2022 | Nhận xét |
+|---|---:|---:|---|
+| Cúm | khoảng 0.542 | khoảng 0.50 | Vẫn ở mức chấp nhận được |
+| Sốt xuất huyết | khoảng 0.475 | khoảng 0.41 | Yếu hơn, đặc biệt ở lớp High |
 
-| Disease | macro-F1 CV | macro-F1 2022 | F1(High) 2022 |
-|---|---|---|---|
-| Flu | 0.542 | ~0.50 | ~0.42 |
-| Dengue | 0.475 | ~0.41 | ~0.25 |
+Cách nói khi trình bày:
 
-**Phân tích:**
-- Flu classifier vẫn ~0.50 macro-F1 → **OK**
-- Dengue classifier drop nặng — Brazil 2016 baseline issue carry-over + giảm sample 2022
+“Phân mức rủi ro khó hơn dự báo số ca vì mô hình phải chọn đúng Low, Medium hay High. Với cúm, kết quả còn tương đối ổn. Với sốt xuất huyết, lớp High vẫn là hạn chế vì dữ liệu ít hơn và các đợt dịch lớn trong quá khứ làm mức nền bị ảnh hưởng.”
 
 ---
 
-## 7. Cell 7.5 — Bảng so sánh tổng hợp CV vs 2022 hold-out
+## 8. Cell 7.5 - So sánh Session 6 và năm 2022
 
-| Model | Metric | CV 2014-2019 | 2022 hold-out | Δ |
-|---|---|---|---|---|
-| LightGBM flu | R² | 0.902 | ~0.80 | -0.10 |
-| LightGBM flu | RMSE | 0.67 | ~0.85 | +0.18 |
-| RF dengue | R² | 0.936 | ~0.87 | -0.07 |
-| RF dengue | RMSE | 0.69 | ~0.78 | +0.09 |
-| XGB flu classifier | macro-F1 | 0.542 | ~0.50 | -0.04 |
-| XGB dengue classifier | macro-F1 | 0.475 | ~0.41 | -0.07 |
+| Nội dung | Kiểm chứng Session 6 | Kiểm chứng 2022 | Cách hiểu |
+|---|---|---|---|
+| Dự báo cúm | R² khoảng 0.902 | R² khoảng 0.80 | Giảm nhưng không mất khả năng dự báo |
+| Dự báo dengue | R² khoảng 0.936 | R² khoảng 0.87 | Giảm ít hơn cúm |
+| Phân loại cúm | Macro-F1 khoảng 0.542 | Macro-F1 khoảng 0.50 | Dùng được cho cảnh báo mức tổng quát |
+| Phân loại dengue | Macro-F1 khoảng 0.475 | Macro-F1 khoảng 0.41 | Cần cải thiện lớp High |
 
 ### Phát hiện chính
 
-**1. Cả 2 model generalize được:**
-- Dengue degrade ít hơn flu (Δ R²: -0.07 vs -0.10) → confirm dengue endemic pattern stable hơn flu seasonal
-- Trong phạm vi expected — model **không bị overfit walk-forward CV folds**
+1. Mô hình vẫn dùng được khi gặp năm mới hơn.
+2. Chỉ số giảm là hợp lý vì dữ liệu 2022 không giống hoàn toàn giai đoạn huấn luyện.
+3. Dengue giảm ít hơn cúm trong dự báo số ca, có thể vì mẫu bệnh dengue trong dữ liệu ổn định hơn theo vùng nhiệt đới.
+4. Phân loại rủi ro, đặc biệt lớp High của dengue, vẫn là điểm cần cải thiện.
 
-**2. NPI residual 2022:**
-- Flu mùa 2022 vẫn lower hơn pre-COVID baseline ~15-20% (WHO report)
-- → R² drop có thể do test data có distribution shift, không phải model bug
-
-**3. Trust score sau 2022 hold-out:**
-- Champion v1 (LGBM flu + RF dengue) **đáng tin** cho deploy
-- → Save artifacts cho FastAPI production load
+**Distribution shift** nghĩa là dữ liệu kiểm tra có phân bố khác dữ liệu huấn luyện. Ví dụ sau COVID, hành vi xã hội thay đổi nên số ca cúm năm 2022 có thể không giống giai đoạn trước COVID.
 
 ---
 
-## 8. Cell 7.6 — Save artifacts Session 7
+## 9. Cell 7.6 - Lưu kết quả kiểm chứng
 
-```python
-# Save validation results
-validation_results_2022 = {
-    'flu_r2_cv': 0.902, 'flu_r2_2022': ~0.80,
-    'dengue_r2_cv': 0.936, 'dengue_r2_2022': ~0.87,
-    'flu_f1_cv': 0.542, 'flu_f1_2022': ~0.50,
-    'dengue_f1_cv': 0.475, 'dengue_f1_2022': ~0.41,
-    'validation_date': '2026-05-05',
-    'notes': 'First clean year post-COVID, NPI relaxed'
-}
-joblib.dump(validation_results_2022, MODELS_DIR / 'validation_2022.json')
-```
+Notebook lưu kết quả kiểm chứng năm 2022 để báo cáo và để backend có thể tham chiếu lại.
+
+**Artifact** nghĩa là file kết quả được lưu ra sau khi chạy mô hình, ví dụ file mô hình `.pkl`, file danh sách đặc trưng hoặc file chỉ số đánh giá.
+
+Cách nói khi trình bày:
+
+“Sau khi kiểm chứng, em lưu lại kết quả để hệ thống có dấu vết rõ ràng: mô hình nào, kiểm tra năm nào, chỉ số ra sao. Điều này giúp phần triển khai backend không phụ thuộc vào việc mở notebook thủ công.”
 
 ---
 
-## Key Insights Session 7 (slide thuyết trình)
+## 10. Ý chính Session 7
 
-1. **Hold-out 2022 là TEST GENERALIZATION thực sự** — walk-forward CV val_year nằm trong training era, 2022 hoàn toàn unseen.
-2. **2022 chọn vì first clean year post-COVID** — NPI relaxed, flu/dengue normalize. 2020-2021 bị NPI distort.
-3. **R² drop -0.07 đến -0.10 acceptable** → model không overfit CV folds, generalize được năm mới.
-4. **Dengue degrade ít hơn flu** → endemic pattern stable hơn seasonal pattern → bài học domain-specific.
-5. **Trust score đủ cao** → champion v1 deploy được. Đây là final gate trước FastAPI production.
+1. Năm 2022 được giữ riêng để kiểm tra mô hình trên dữ liệu mới hơn.
+2. Không dùng 2020-2021 làm kiểm chứng chính vì COVID làm dữ liệu quá bất thường.
+3. Chỉ số giảm khi sang 2022 là bình thường, không phải lỗi mô hình.
+4. Dự báo số ca vẫn khá ổn; phân loại rủi ro dengue còn yếu ở lớp High.
+5. Kết quả đủ để đưa mô hình vào backend của bản mẫu, nhưng cần ghi rõ giới hạn trong báo cáo.
 
 ---
 
-## Câu nói thuyết trình cho Session 7
+## 11. Câu nói thuyết trình cho Session 7
 
-> "Walk-forward CV Session 6 đã rigorous, nhưng val_year 2014-2019 **vẫn nằm trong training era**. Em cần test **generalization thực sự** trên năm **chưa thấy bao giờ**."
+> “Sau khi kiểm chứng theo thời gian ở Session 6, em làm thêm một bước kiểm tra độc lập bằng năm 2022. Năm này không dùng để huấn luyện chính, nên giúp kiểm tra xem mô hình có dùng được trên dữ liệu mới hơn không.”
 >
-> "Em chọn **2022 hold-out**. Vì sao 2022? Vì:
-> - 2020-2021 bị NPI distortion (flu giảm 99% giả tạo) — không fair test
-> - 2022 là **first clean year post-COVID** — NPI relaxed, hành vi flu/dengue normalize lại
-> - 2023+ data chưa stable lúc làm thesis"
+> “Em không chọn 2020-2021 vì hai năm này bị ảnh hưởng rất mạnh bởi COVID. Với cúm, khẩu trang, giãn cách và thay đổi hành vi khám bệnh làm số ca giảm bất thường. Vì vậy 2022 là lựa chọn hợp lý hơn.”
 >
-> "Em download ERA5 2022 riêng (600MB CDS API), build features 2022 với **cùng pipeline Session 5**, predict bằng champion v1 (LGBM flu + RF dengue)."
->
-> [CHUYỂN SLIDE — bảng kết quả]
->
-> "Kết quả: **Flu R² CV 0.902 → 2022 ~0.80 (Δ -0.10), Dengue R² CV 0.936 → 2022 ~0.87 (Δ -0.07)**. **Cả 2 model generalize được** — drop ~0.05-0.10 R² nằm trong phạm vi acceptable."
->
-> [NHẤN MẠNH] "Đây là **gate cuối cùng trước deploy**. Walk-forward CV bắt overfit trong training era, hold-out 2022 confirm model **không bị stuck vào pattern training cũ**. Trust score đủ cao → save artifacts v1 cho FastAPI load."
->
-> "Phát hiện thú vị: **dengue degrade ít hơn flu** (-0.07 vs -0.10). Lý do em phân tích: dengue endemic pattern stable hơn flu seasonal — vùng nhiệt đới cả năm có dengue, không peak rõ rệt như flu mùa đông Bắc bán cầu."
+> “Kết quả năm 2022 có giảm so với kiểm chứng trước đó, nhưng vẫn ở mức chấp nhận được. Điều này cho thấy mô hình không chỉ học thuộc dữ liệu cũ. Tuy nhiên phần phân loại rủi ro dengue, nhất là lớp High, vẫn là hạn chế cần cải thiện.”
