@@ -6,8 +6,12 @@ ML Engine — load và inference các production models.
 Models:
   lgbm_flu_regressor_v2.pkl      — LightGBM, predict log1p(flu cases), velocity+accel features
   rf_dengue_regressor_v2.pkl     — RandomForest, predict log1p(dengue cases), velocity+accel features
-  xgb_flu_classifier_v3.pkl      — XGBClassifier, predict P(Low/Med/High) flu, sample_weight balanced
-  xgb_dengue_classifier_v3.pkl   — XGBClassifier, predict P(Low/Med/High) dengue, sample_weight balanced
+  xgb_flu_classifier_v4.pkl      — XGBClassifier, predict P(Low/Med/High) flu, encoding fix + imbalanced strategy
+  xgb_dengue_classifier_v4.pkl   — XGBClassifier, predict P(Low/Med/High) dengue, encoding fix + imbalanced strategy
+
+Lưu ý: classifier v4 dùng mapping tường minh Low=0/Medium=1/High=2 (sửa bug
+LabelEncoder v3 sort alphabet thành High=0). predict_classification đọc class_order
+từ metadata nên không phụ thuộc thứ tự encoding.
 """
 
 import json
@@ -29,8 +33,8 @@ _REGRESSOR_FILES = {
     "dengue": "rf_dengue_regressor_v2",
 }
 _CLASSIFIER_FILES = {
-    "flu":    "xgb_flu_classifier_v3",
-    "dengue": "xgb_dengue_classifier_v3",
+    "flu":    "xgb_flu_classifier_v4",
+    "dengue": "xgb_dengue_classifier_v4",
 }
 
 # Multi-horizon files (SESSION 8 — 21/05/2026)
@@ -74,7 +78,21 @@ def _load_artifact(models_dir: Path, stem: str) -> dict | None:
         with open(metrics_path) as f:
             metrics = json.load(f)
 
-    return {"model": model, "features": features, "metrics": metrics}
+    # class_order: {"0":"Low","1":"Medium","2":"High"} — index của predict_proba → label.
+    # Đọc từ metadata để KHÔNG hardcode (tránh bug LabelEncoder sort alphabet).
+    class_order_raw = features_meta.get("class_order")
+    label_of_index: dict[int, str] | None = None
+    if class_order_raw:
+        label_of_index = {int(k): v for k, v in class_order_raw.items()}
+    high_threshold = features_meta.get("high_threshold")
+
+    return {
+        "model": model,
+        "features": features,
+        "metrics": metrics,
+        "label_of_index": label_of_index,
+        "high_threshold": high_threshold,
+    }
 
 
 def load_models(models_dir: Path) -> None:
@@ -145,15 +163,30 @@ def predict_classification(disease: str, feature_values: dict[str, float]) -> di
     art = _classifiers[disease]
     X = _build_input(feature_values, art["features"])
     proba = art["model"].predict_proba(X)[0]
-    pred_idx = int(np.argmax(proba))
+
+    # Map index → label theo metadata (mặc định Low=0/Med=1/High=2 nếu thiếu).
+    label_of_index = art.get("label_of_index") or _RISK_LABELS
+    idx_of = {label: i for i, label in label_of_index.items()}
+    p_low  = float(proba[idx_of["Low"]])
+    p_med  = float(proba[idx_of["Medium"]])
+    p_high = float(proba[idx_of["High"]])
+
+    # Risk level: nếu có high_threshold (tuned từ notebook 6.8c), ưu tiên bắt High.
+    high_threshold = art.get("high_threshold")
+    if high_threshold is not None and p_high >= high_threshold:
+        risk_level = "High"
+    else:
+        risk_level = max({"Low": p_low, "Medium": p_med, "High": p_high}.items(),
+                         key=lambda kv: kv[1])[0]
+
     return {
-        "risk_level": _RISK_LABELS[pred_idx],
+        "risk_level": risk_level,
         # Score = P(High) — đo "mức độ rủi ro" liên tục 0..1, không phải confidence.
         # Cao = nguy hiểm. Nước Low chắc chắn vẫn có score thấp (đúng intuition).
-        "risk_probability": round(float(proba[2]), 4),
-        "p_low":  round(float(proba[0]), 4),
-        "p_med":  round(float(proba[1]), 4),
-        "p_high": round(float(proba[2]), 4),
+        "risk_probability": round(p_high, 4),
+        "p_low":  round(p_low, 4),
+        "p_med":  round(p_med, 4),
+        "p_high": round(p_high, 4),
     }
 
 
