@@ -1,14 +1,13 @@
 """
-ML Engine — load và inference 4 model v1.
+ML Engine — load và inference các production models.
 
 Đây là single entry point cho mọi ML operation trong app.
-Trước đây logic này nằm trong app/ml/loader.py (Phase 4 refactor).
 
 Models:
-  lgbm_flu_regressor_v1.pkl      — LightGBM, predict log1p(flu cases)
-  rf_dengue_regressor_v1.pkl     — RandomForest, predict log1p(dengue cases)
-  xgb_flu_classifier_v1.pkl      — XGBClassifier, predict P(Low/Med/High) flu
-  xgb_dengue_classifier_v1.pkl   — XGBClassifier, predict P(Low/Med/High) dengue
+  lgbm_flu_regressor_v2.pkl      — LightGBM, predict log1p(flu cases), velocity+accel features
+  rf_dengue_regressor_v2.pkl     — RandomForest, predict log1p(dengue cases), velocity+accel features
+  xgb_flu_classifier_v3.pkl      — XGBClassifier, predict P(Low/Med/High) flu, sample_weight balanced
+  xgb_dengue_classifier_v3.pkl   — XGBClassifier, predict P(Low/Med/High) dengue, sample_weight balanced
 """
 
 import json
@@ -26,12 +25,12 @@ _classifiers: dict = {}
 _regressors_mh: dict = {}  # multi-horizon: {(disease, h): artifact}
 
 _REGRESSOR_FILES = {
-    "flu":    "lgbm_flu_regressor_v1",
-    "dengue": "rf_dengue_regressor_v1",
+    "flu":    "lgbm_flu_regressor_v2",
+    "dengue": "rf_dengue_regressor_v2",
 }
 _CLASSIFIER_FILES = {
-    "flu":    "xgb_flu_classifier_v2",
-    "dengue": "xgb_dengue_classifier_v2",
+    "flu":    "xgb_flu_classifier_v3",
+    "dengue": "xgb_dengue_classifier_v3",
 }
 
 # Multi-horizon files (SESSION 8 — 21/05/2026)

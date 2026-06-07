@@ -1,0 +1,34 @@
+{
+  "features": [
+    "deng_log_lag6",
+    "deng_log_lag8",
+    "deng_log_lag10",
+    "deng_log_lag12",
+    "deng_log_lag14",
+    "deng_log_rollmean4",
+    "deng_log_rollmean8",
+    "deng_log_velocity",
+    "deng_log_accel",
+    "temp_c_lag11",
+    "dewpoint_c_lag8",
+    "precip_mm_lag6",
+    "humidity_pct_lag1",
+    "solar_wm2_lag16",
+    "iso_week_sin",
+    "iso_week_cos",
+    "iso_year"
+  ],
+  "target": "deng_log",
+  "version": "v2",
+  "date": "2026-06-06",
+  "model_type": "RandomForest",
+  "tuned": true,
+  "note": "Added deng_log_velocity + deng_log_accel (trend features)",
+  "best_params": {
+    "n_estimators": 254,
+    "max_depth": 21,
+    "min_samples_split": 5,
+    "min_samples_leaf": 5,
+    "max_features": "sqrt"
+  }
+}
