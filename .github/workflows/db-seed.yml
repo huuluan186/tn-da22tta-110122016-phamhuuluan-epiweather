@@ -1,0 +1,48 @@
+name: DB Seed (one-time)
+
+# Chạy 1 lần để khởi tạo cloud DB (Neon/Supabase) trống:
+#   1. Apply schema (db_init.sql — CREATE TABLE, partition, view)
+#   2. bootstrap_db.py — migrations + seed countries + model_versions (v2/v4)
+#      + disease_cases + feature_snapshots từ CSV trong repo
+#
+# Trigger thủ công: Actions tab -> "DB Seed (one-time)" -> Run workflow.
+# Cần secret DATABASE_URL (connection string cloud DB, kèm ?sslmode=require).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: db-seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      PYTHONPATH: ${{ github.workspace }}/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install deps
+        run: pip install -r backend/requirements.txt
+
+      - name: Apply schema (db_init.sql)
+        run: |
+          python - <<'PY'
+          import os, pathlib, psycopg2
+          sql = pathlib.Path("scripts/db_init.sql").read_text(encoding="utf-8")
+          conn = psycopg2.connect(os.environ["DATABASE_URL"])
+          conn.autocommit = True
+          conn.cursor().execute(sql)
+          print("[seed] schema applied")
+          PY
+
+      - name: Bootstrap (migrations + seed reference data + models + features)
+        run: python scripts/bootstrap_db.py
