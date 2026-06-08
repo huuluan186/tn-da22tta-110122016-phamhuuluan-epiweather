@@ -1,11 +1,11 @@
 """
-load_db_v2.py — Seed DB kltn_epiweather từ artifacts v1 (LightGBM + RF + XGBClassifier).
+load_db_v2.py — Seed DB kltn_epiweather từ artifacts production (LightGBM + RF + XGBClassifier).
 
 Khác load_db.py cũ:
   - Paths: data/processed/, ml_models/ (đổi từ dataset/, models/)
   - Per-model metadata: *_features.json + *_metrics.json (thay vì 1 file tổng)
-  - 4 model: lgbm_flu_regressor_v1, rf_dengue_regressor_v1,
-             xgb_flu_classifier_v1, xgb_dengue_classifier_v1
+  - 4 model: lgbm_flu_regressor_v2, rf_dengue_regressor_v2,
+             xgb_flu_classifier_v4, xgb_dengue_classifier_v4 (classifier v4 = fix encoding LabelEncoder)
   - Tránh model.get_xgb_params() — gọi __dict__ thông qua to_dict generic
   - Bỏ feature_configs, per-country risk_thresholds (defer)
   - Risk level lấy từ classifier (Low/Medium/High) trực tiếp
@@ -54,10 +54,10 @@ DB_URL = os.getenv(
 
 # (disease_code, role) -> stem
 ARTIFACTS = {
-    ("flu", "regressor"):    "lgbm_flu_regressor_v1",
-    ("dengue", "regressor"): "rf_dengue_regressor_v1",
-    ("flu", "classifier"):   "xgb_flu_classifier_v1",
-    ("dengue", "classifier"): "xgb_dengue_classifier_v1",
+    ("flu", "regressor"):    "lgbm_flu_regressor_v2",
+    ("dengue", "regressor"): "rf_dengue_regressor_v2",
+    ("flu", "classifier"):   "xgb_flu_classifier_v4",
+    ("dengue", "classifier"): "xgb_dengue_classifier_v4",
 }
 
 # Mapping cho disease_cases.raw_count + transformed_value

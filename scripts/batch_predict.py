@@ -67,13 +67,20 @@ def latest_valid_week(disease: str) -> tuple[int, int] | None:
 
 
 def get_model_version_id(cur, disease_id: int) -> int:
+    """Lấy id của regressor version đang active (không hardcode version cụ thể).
+
+    model_versions.version có dạng '<ver>-regressor' / '<ver>-classifier'
+    (vd 'v2-regressor', 'v4-classifier'). Chọn regressor champion/active mới nhất
+    để label prediction — đổi model version chỉ cần reseed, không sửa code ở đây.
+    """
     cur.execute(
         """
         SELECT id
         FROM model_versions
         WHERE disease_id = %s
-          AND version = 'v1-regressor'
-        ORDER BY is_champion DESC, is_active DESC, id DESC
+          AND version LIKE '%%-regressor'
+          AND is_active = TRUE
+        ORDER BY is_champion DESC, id DESC
         LIMIT 1
         """,
         (disease_id,),
@@ -81,7 +88,10 @@ def get_model_version_id(cur, disease_id: int) -> int:
     row = cur.fetchone()
     if row:
         return int(row[0])
-    raise RuntimeError(f"Không tìm thấy model_versions v1-regressor cho disease_id={disease_id}")
+    raise RuntimeError(
+        f"Không tìm thấy model_versions regressor active cho disease_id={disease_id} "
+        f"— chạy load_db_v2.py để seed model_versions trước"
+    )
 
 
 def not_after_latest_valid(disease: str, year: int, week: int) -> bool:
