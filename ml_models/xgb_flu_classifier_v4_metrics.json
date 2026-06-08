@@ -1,0 +1,10 @@
+{
+  "macro_f1": 0.5486,
+  "high_recall": 0.5073,
+  "high_prec": 0.5191,
+  "med_recall": 0.5833,
+  "cv_folds": 6,
+  "cv_type": "walk-forward",
+  "strategy": "custom",
+  "high_threshold": null
+}
