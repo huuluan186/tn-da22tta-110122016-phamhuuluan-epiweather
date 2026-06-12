@@ -1,0 +1,357 @@
+=== Cell 115 (markdown) ===
+## 7.A — Download + process ERA5 2022 (DOCUMENTATION ONLY)
+
+Tương tự [2.B] [2.C] cho dữ liệu 2010-2019, cell này document quy trình lấy ERA5 2022:
+
+1. Download NetCDF 12 tháng × 17 biến từ CDS API (~600MB)
+2. KD-tree map sang iso3 (Natural Earth 50m)
+3. Aggregate (iso3, year, month) → broadcast weekly
+4. Compute derived vars (humidity, wind, temp_range)
+5. Export `era5_weekly_2022_final.csv` vào Drive
+
+**Đã chạy ngày 5/5/2026** (trước notebook v5, trong giai đoạn validation tuần 3). File output 1.2MB đã có sẵn trên Drive.
+
+=== Cell 116 (code) ===
+# [7.A] Download + process ERA5 2022 — DOCUMENTATION ONLY
+# =============================================================
+# Đã chạy 05/05/2026, file output đã có trên Drive.
+# Logic giống [2.B] + [2.C] nhưng chỉ download năm 2022.
+# =============================================================
+
+DOCUMENTATION_ONLY = True   # đổi False nếu cần re-process
+
+# Đảm bảo ERA5_2022_FILE đã định nghĩa (từ [0.4]); nếu chạy độc lập, fallback:
+try:
+    ERA5_2022_FILE
+except NameError:
+    ERA5_2022_FILE = WEATHER_DIR / 'processed/era5_weekly_2022_final.csv'
+
+if not DOCUMENTATION_ONLY:
+    import cdsapi, xarray as xr
+    import geopandas as gpd
+    from scipy.spatial import cKDTree
+
+    c = cdsapi.Client()
+    ERA5_VARIABLES = [
+        '2m_temperature', '2m_dewpoint_temperature',
+        'minimum_2m_temperature_since_previous_post_processing',
+        'maximum_2m_temperature_since_previous_post_processing',
+        '10m_u_component_of_wind', '10m_v_component_of_wind',
+        'total_precipitation', 'convective_precipitation',
+        'large_scale_precipitation', 'total_column_water_vapour',
+        'evaporation', 'surface_solar_radiation_downwards',
+        'downward_uv_radiation_at_the_surface',
+        'surface_thermal_radiation_downwards',
+        'total_cloud_cover', 'surface_pressure',
+        'mean_sea_level_pressure', 'boundary_layer_height',
+    ]
+
+    out_nc = ERA5_RAW / 'era5_2022.nc'
+    if not out_nc.exists():
+        c.retrieve(
+            'reanalysis-era5-single-levels-monthly-means',
+            {
+                'product_type': 'monthly_averaged_reanalysis',
+                'variable'    : ERA5_VARIABLES,
+                'year'        : '2022',
+                'month'       : [f'{m:02d}' for m in range(1, 13)],
+                'time'        : '00:00',
+                'format'      : 'netcdf',
+            },
+            str(out_nc),
+        )
+        print(f'[OK] Downloaded {out_nc.name}')
+
+    # Process tương tự [2.C]: KD-tree map + monthly → weekly + derived va
+
+=== Cell 117 (markdown) ===
+## 7.0 — Reload models + ERA5 2022 + raw data
+
+Load 4 model artifacts + ERA5 2022 (file riêng, 1.2MB) + flu/dengue raw 2010-2022.
+
+**LƯU Ý khi mở Colab giữa chừng:** trước [7.0] cần chạy thêm:
+1. SESSION 0 ([0.1]-[0.7]): mount Drive, imports, paths constants
+2. Cell [5.1] (helper functions: add_lag_features, add_rolling_features, add_cyclic_week)
+
+Sau [7.0] phải chạy đúng thứ tự [7.0b] → [7.1] → [7.2] → [7.3] → [7.4] → [7.5].
+
+=== Cell 118 (code) ===
+# [7.0] Reload models + ERA5 2022 + raw data
+import joblib
+
+# === Load models v1 ===
+flu_reg_v1  = joblib.load(MODELS_DIR / 'lgbm_flu_regressor_v1.pkl')
+deng_reg_v1 = joblib.load(MODELS_DIR / 'rf_dengue_regressor_v1.pkl')
+flu_clf_v1  = joblib.load(MODELS_DIR / 'xgb_flu_classifier_v1.pkl')
+deng_clf_v1 = joblib.load(MODELS_DIR / 'xgb_dengue_classifier_v1.pkl')
+print('[OK] 4 models loaded')
+
+# === Load feature lists từ JSON ===
+import json as json_lib
+with open(MODELS_DIR / 'lgbm_flu_regressor_v1_features.json') as f:
+    flu_meta = json_lib.load(f)
+    FEATURE_COLS_FLU = flu_meta['features']
+with open(MODELS_DIR / 'rf_dengue_regressor_v1_features.json') as f:
+    deng_meta = json_lib.load(f)
+    FEATURE_COLS_DENGUE = deng_meta['features']
+print(f'[OK] FEATURE_COLS_FLU    ({len(FEATURE_COLS_FLU)} cols)')
+print(f'[OK] FEATURE_COLS_DENGUE ({len(FEATURE_COLS_DENGUE)} cols)')
+
+# === Load ERA5 2022 (file riêng) ===
+ERA5_2022_FILE = WEATHER_DIR / 'processed/era5_weekly_2022_final.csv'
+era5_2022 = pd.read_csv(ERA5_2022_FILE)
+print(f'[OK] ERA5 2022: {era5_2022.shape}')
+
+# === Load flu raw + build flu_filt (giống SESSION 1) ===
+flu_raw = pd.read_csv(RAW / 'VIW_FNT.csv', low_memory=False)
+flu_raw['influenza_total'] = flu_raw['INF_A'].fillna(0) + flu_raw['INF_B'].fillna(0)
+flu_filt = flu_raw[flu_raw['ISO_YEAR'] == 2022].copy()
+print(f'[OK] Flu 2022 raw: {flu_filt.shape}')
+
+# === Load dengue raw + filter Week + 2022 ===
+dengue_raw = pd.read_csv(RAW / 'National_extract_V1_3.csv', low_memory=False)
+dengue_w = dengue_raw[
+    (dengue_raw['T_res'] == 'Week') &
+    (dengue_raw['Year'] == 2022)
+].copy()
+print(f'[OK] Dengue 2022 raw: {dengue_w.shape}')
+
+# === Encoder cho classification labels ===
+from sklearn.preprocessing import LabelEncoder
+CLASS_LABELS = ['Low', 'Medium', 'High']
+le = LabelEncoder().fit(CLASS_LABELS)
+
+=== Cell 119 (markdown) ===
+## 7.0b — Verify ERA5 2022 schema
+
+ERA5 2022 chỉ có 9 cột (file 2010-2019 có 21 cột) → có thể download phiên trước chỉ subset biến. Cell này check column structure trước khi build features.
+
+=== Cell 120 (code) ===
+# [7.0b] Verify ERA5 2022 columns
+print(f'ERA5 2022 columns ({len(era5_2022.columns)}):')
+print(era5_2022.columns.tolist())
+print()
+print('Sample 3 rows:')
+print(era5_2022.head(3).to_string())
+print()
+print('--- Required features (from training) ---')
+NEED_WEATHER = ['temp_c', 'humidity_pct', 'precip_mm', 'solar_wm2', 'dewpoint_c']
+for col in NEED_WEATHER:
+    status = '✓' if col in era5_2022.columns else '✗ MISSING'
+    print(f'  {col:15s} {status}')
+
+# Verify flu + dengue raw OK
+print()
+print(f'Flu 2022 raw   : {flu_filt.shape}, countries={flu_filt["COUNTRY_CODE"].nunique()}')
+print(f'Dengue 2022 raw: {dengue_w.shape}, countries={dengue_w["ISO_A0"].nunique()}')
+
+=== Cell 121 (markdown) ===
+## 7.1 — Build features 2022 flu
+
+Áp pipeline feature engineering giống SESSION 5 nhưng cho data 2022. Tự động drop tuần đầu thiếu history.
+
+=== Cell 122 (code) ===
+# [7.1] Build features FLU 2022
+# (1) Chuẩn bị flu 2022: rename cols giống flu_m của SESSION 3
+flu_2022 = flu_filt[['COUNTRY_CODE', 'ISO_YEAR', 'ISO_WEEK',
+                     'INF_A', 'INF_B', 'influenza_total',
+                     'HEMISPHERE', 'ORIGIN_SOURCE']].rename(columns={
+    'COUNTRY_CODE': 'iso3',
+    'ISO_YEAR'    : 'iso_year',
+    'ISO_WEEK'    : 'iso_week',
+})
+
+# Dedupe (cộng dồn nhiều ORIGIN_SOURCE)
+flu_2022 = (flu_2022.groupby(['iso3','iso_year','iso_week'], as_index=False)
+                    .agg({'INF_A':'sum', 'INF_B':'sum', 'influenza_total':'sum',
+                          'HEMISPHERE':'first'}))
+print(f'Flu 2022 sau dedupe: {flu_2022.shape}')
+
+# (2) Merge với ERA5 2022
+flu_2022 = flu_2022.merge(era5_2022, on=['iso3','iso_year','iso_week'], how='inner')
+print(f'Sau INNER JOIN ERA5: {flu_2022.shape}, {flu_2022["iso3"].nunique()} nước')
+
+# (3) Compute flu_log
+flu_2022['flu_log'] = np.log1p(flu_2022['influenza_total'])
+
+# (4) Apply feature engineering helpers (đã định nghĩa ở SESSION 5 [5.1])
+flu_2022 = add_lag_features(flu_2022, 'flu_log', lags=[1, 2, 3])
+flu_2022 = add_rolling_features(flu_2022, 'flu_log', windows=[4, 8])
+flu_2022 = add_lag_features(flu_2022, 'temp_c',       lags=[3, 7])
+flu_2022 = add_lag_features(flu_2022, 'humidity_pct', lags=[1, 7])
+flu_2022 = add_lag_features(flu_2022, 'solar_wm2',    lags=[7])
+flu_2022 = add_lag_features(flu_2022, 'dewpoint_c',   lags=[1])
+flu_2022 = add_cyclic_week(flu_2022)
+flu_2022 = pd.get_dummies(flu_2022, columns=['HEMISPHERE'], prefix='HEMISPHERE')
+
+# Ensure cả 2 cột HEMISPHERE_NH và HEMISPHERE_SH tồn tại
+for col in ['HEMISPHERE_NH', 'HEMISPHERE_SH']:
+    if col not in flu_2022.columns:
+        flu_2022[col] = False
+
+# (5) Drop rows NaN ở lag
+flu_2022_feat = flu_2022.dropna(subset=FEATURE_COLS_FLU + ['flu_log']).copy()
+print(f'Sau drop NaN lag: {flu_2022_feat.shape}, {flu_2022_feat["iso3"].nunique()} nước')
+print(f'Week range: {flu_2022_feat["iso_week"].min()} - {flu_2022_feat["iso_week"].max()}')
+
+=== Cell 123 (markdown) ===
+## 7.2 — Build features 2022 dengue
+
+Logic giống SESSION 5 [5.3]: build complete grid → fillna(0) → compute lag → filter ground truth ở cuối.
+
+=== Cell 124 (code) ===
+# [7.2] Build features DENGUE 2022
+import itertools
+
+# (1) Convert calendar_start_date → ISO year/week
+dengue_d = dengue_w.copy()
+dengue_d['date'] = pd.to_datetime(dengue_d['calendar_start_date'], format='%m/%d/%Y', errors='coerce')
+dengue_d = dengue_d.dropna(subset=['date'])
+iso_cal = dengue_d['date'].dt.isocalendar()
+dengue_d['iso_year'] = iso_cal['year']
+dengue_d['iso_week'] = iso_cal['week']
+dengue_d = dengue_d.rename(columns={'ISO_A0': 'iso3'})
+
+# Apply priority (Total > Suspected > Confirmed > ...)
+PRIORITY = ['Total', 'Suspected', 'Confirmed', 'Probable and confirmed',
+            'Suspected and confirmed', 'Probable', 'confirmed']
+dengue_d['priority'] = dengue_d['case_definition_standardised'].map({v: i for i, v in enumerate(PRIORITY)})
+dengue_d = (dengue_d.sort_values('priority')
+                    .drop_duplicates(subset=['iso3','iso_year','iso_week'], keep='first'))
+
+# (2) Identify dengue countries có coverage >= 20 weeks (lỏng hơn vì 2022 chỉ 1 năm)
+KEEP_DENGUE_ISO_2022 = []
+for iso in dengue_d['iso3'].unique():
+    if (dengue_d['iso3'] == iso).sum() >= 20:
+        KEEP_DENGUE_ISO_2022.append(iso)
+print(f'Giữ {len(KEEP_DENGUE_ISO_2022)} nước dengue có >= 20 weeks báo cáo 2022')
+
+# (3) Build full grid 2022
+grid_2022 = pd.DataFrame(
+    list(itertools.product(KEEP_DENGUE_ISO_2022, [2022], range(1, 53))),
+    columns=['iso3', 'iso_year', 'iso_week']
+)
+print(f'Full grid 2022: {grid_2022.shape}')
+
+# (4) Merge weather + dengue
+grid_2022 = grid_2022.merge(era5_2022, on=['iso3','iso_year','iso_week'], how='left')
+dengue_only = dengue_d[['iso3','iso_year','iso_week','dengue_total']]
+grid_2022 = grid_2022.merge(dengue_only, on=['iso3','iso_year','iso_week'], how='left')
+
+# (5) Mark gốc + fillna(0)
+grid_2022['has_original_dengue'] = grid_2022['dengue_total'].notna()
+grid_2022['dengue_total_filled'] = grid_2022['dengue_total'].fillna(0)
+grid_2022['deng_log'] = np.log1p(grid_2022['dengue_total_filled'])
+
+# (6) Compute lag/rolling
+grid_2022 = grid_2022.sort_values(['
+
+=== Cell 125 (markdown) ===
+## 7.3 — Predict regression + evaluate 2022 hold-out
+
+Load 4 models v1, predict trên features 2022, đo RMSE/MAE/R². So sánh với CV mean để check generalization.
+
+=== Cell 126 (code) ===
+# [7.3] Predict regression + evaluate 2022
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
+# === FLU regression ===
+X_flu  = flu_2022_feat[FEATURE_COLS_FLU]
+y_flu  = flu_2022_feat['flu_log'].values
+yhat_flu = flu_reg_v1.predict(X_flu)
+rmse_flu = np.sqrt(mean_squared_error(y_flu, yhat_flu))
+mae_flu  = mean_absolute_error(y_flu, yhat_flu)
+r2_flu   = r2_score(y_flu, yhat_flu)
+
+print('=== FLU Regression 2022 (LightGBM tuned v1) ===')
+print(f'  Rows  : {len(y_flu):,}')
+print(f'  RMSE  : {rmse_flu:.4f}')
+print(f'  MAE   : {mae_flu:.4f}')
+print(f'  R²    : {r2_flu:.4f}')
+print(f'  CV R² : 0.9019 (walk-forward 6 folds 2014-2019)')
+print(f'  Δ     : {r2_flu - 0.9019:+.4f}')
+
+# === DENGUE regression ===
+X_deng  = deng_2022_feat[FEATURE_COLS_DENGUE]
+y_deng  = deng_2022_feat['deng_log'].values
+yhat_deng = deng_reg_v1.predict(X_deng)
+rmse_deng = np.sqrt(mean_squared_error(y_deng, yhat_deng))
+mae_deng  = mean_absolute_error(y_deng, yhat_deng)
+r2_deng   = r2_score(y_deng, yhat_deng)
+
+print()
+print('=== DENGUE Regression 2022 (RandomForest tuned v1) ===')
+print(f'  Rows  : {len(y_deng):,}')
+print(f'  RMSE  : {rmse_deng:.4f}')
+print(f'  MAE   : {mae_deng:.4f}')
+print(f'  R²    : {r2_deng:.4f}')
+print(f'  CV R² : 0.9366 (walk-forward 3 folds 2017-2019)')
+print(f'  Δ     : {r2_deng - 0.9366:+.4f}')
+
+# Save to RESULTS for [7.5] comparison
+RESULTS_2022 = {
+    'flu':    {'rmse': rmse_flu, 'mae': mae_flu, 'r2': r2_flu, 'n': len(y_flu)},
+    'dengue': {'rmse': rmse_deng, 'mae': mae_deng, 'r2': r2_deng, 'n': len(y_deng)},
+}
+
+=== Cell 127 (markdown) ===
+## 7.4 — Predict classification + evaluate 2022 hold-out
+
+Để tính risk class 2022, cần endemic channel baseline từ training years.
+- Flu baseline: từ flu 2010-2018 per (iso3, iso_week)
+- Dengue baseline: từ dengue 2015-2018 per (iso3, iso_week)
+
+Sau đó assign label Low/Med/High cho data 2022 và đánh giá classifier.
+
+=== Cell 128 (code) ===
+# [7.4] Classification 2022 evaluation
+# Need: load master file để compute baseline mean/std cho endemic channel
+m = pd.read_csv(MASTER_FILE)
+m['flu_log']  = np.log1p(m['influenza_total'])
+m['deng_log'] = np.log1p(m['dengue_total'])
+
+# === FLU classification 2022 ===
+# Build baseline từ flu 2010-2018 per (iso3, iso_week)
+flu_train_for_baseline = m[m['iso_year'].between(2010, 2018) & m['influenza_total'].notna()]
+flu_baseline = (flu_train_for_baseline.groupby(['iso3', 'iso_week'])['influenza_total']
+                .agg(['mean','std']).reset_index()
+                .rename(columns={'mean':'bl_mean','std':'bl_std'}))
+flu_baseline['bl_std'] = flu_baseline['bl_std'].fillna(0)
+
+# Merge baseline + assign label cho flu 2022
+flu_2022_eval = flu_2022_feat.merge(flu_baseline, on=['iso3','iso_week'], how='left')
+def assign_label(row, col):
+    v = row[col]
+    if pd.isna(v) or pd.isna(row['bl_mean']):
+        return np.nan
+    thr_high = row['bl_mean'] + 2*row['bl_std']
+    if v >= thr_high: return 'High'
+    elif v >= row['bl_mean']: return 'Medium'
+    else: return 'Low'
+flu_2022_eval['flu_risk_class'] = flu_2022_eval.apply(lambda r: assign_label(r, 'influenza_total'), axis=1)
+flu_2022_eval = flu_2022_eval.dropna(subset=['flu_risk_class'])
+
+# Predict
+X_flu_clf = flu_2022_eval[FEATURE_COLS_FLU]
+y_flu_clf = le.transform(flu_2022_eval['flu_risk_class'])
+yhat_flu_clf = flu_clf_v1.predict(X_flu_clf)
+yhat_flu_prob = flu_clf_v1.predict_proba(X_flu_clf)
+
+f1_flu  = f1_score(y_flu_clf, yhat_flu_clf, average='macro')
+try:
+    auc_flu = roc_auc_score(y_flu_clf, yhat_flu_prob, multi_class='ovr', average='macro')
+except: auc_flu = np.nan
+
+print(f'=== FLU Classification 2022 (XGBClassifier v1) ===')
+print(f'  Rows                   : {len(y_flu_clf):,}')
+print(f'  macro-F1               : {f1_flu:.4f}  (CV: 0.5422,  Δ {f1_flu-0.5422:+.4f})')
+print(f'  AUC OvR                : {auc_flu:.4f}  (CV: 0.7438)')
+print()
+print('Classification report:')
+print(classification_report(y_flu_clf, yhat_f
+
+=== Cell 129 (markdown) ===
+## 7.5 — Bảng so sánh tổng hợp CV vs 2022 hold-out
+
+Tổng kết validation: CV mean (training years) vs 2022 (independent test set).
+

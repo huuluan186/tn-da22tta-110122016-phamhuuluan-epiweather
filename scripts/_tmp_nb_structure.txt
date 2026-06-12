@@ -1,0 +1,217 @@
+Tong cells: 150
+Cell   0: # KLTN EpiWeather — ML Pipeline v5
+
+**Sinh viên:** Phạm Hữu Luân | MSSV: 110122016 | Lớp: DA22TTA  
+
+Cell   2: ## 0.1 — Mount Google Drive
+
+Mount Drive vào `/content/drive`. Lần đầu sẽ yêu cầu authenticate. `for
+Cell   4: ## 0.2 — Cài thư viện còn thiếu
+
+Idempotent: thử import trước, chỉ pip install nếu không có. Colab đ
+Cell   6: ## 0.3 — Import tất cả thư viện
+
+Tập trung import 1 lần ở SESSION 0 — các SESSION sau không import l
+Cell   8: ## 0.4 — Paths tập trung
+
+TẤT CẢ paths khai báo ở đây. SESSION sau dùng các constant này, không hard
+Cell  10: ## 0.5 — Constants đã chốt
+
+Các hằng số định nghĩa bài toán (train range, target, lag, models). KHÔN
+Cell  12: ## 0.6 — Kiểm tra files quan trọng trên Drive
+
+Liệt kê các file raw + processed cần thiết. Báo `[OK]
+Cell  14: ## 0.7 — Package versions
+
+Log version các thư viện chính để ghi vào báo cáo (reproducibility). Khi 
+Cell  17: ## 1.1 — Load FluNet
+
+Load `VIW_FNT.csv` — nguồn dữ liệu cúm chính từ WHO FluNet. Kiểm tra shape, dt
+Cell  19: ## 1.2 — FluNet: Missing rate, build influenza_total, coverage theo năm
+Cell  22: ## 1.3 — Load Dengue (OpenDengue v1.3)
+
+Load `National_extract_V1_3.csv` — dữ liệu sốt xuất huyết. K
+Cell  24: ## 1.4 — Dengue: filter weekly, coverage + total cases theo năm, quyết định giai đoạn
+
+Lọc T_res = '
+Cell  26: ## 1.5 — Load ECDC files (sentinel + ILI)
+
+Load `sentinelTestsDetectionsPositivity.csv` và `ILIARIRa
+Cell  30: ## 2.A — Setup CDS API key (tạo file ~/.cdsapirc bằng code)
+
+**Trước khi chạy cell code dưới đây**, 
+Cell  32: ## 2.B — Download ERA5 NetCDF raw (DOCUMENTATION — KHÔNG CHẠY)
+
+Code cell dưới đây gọi CDS API để do
+Cell  34: ## 2.C — Process ERA5 NetCDF → CSV weekly (DOCUMENTATION — KHÔNG CHẠY)
+
+Cell dưới đây aggregate 120 
+Cell  36: ## 2.1 — Load ERA5 weekly + schema check
+
+Load file 33MB từ Drive. Kiểm tra shape, columns, dtypes, 
+Cell  38: ## 2.2 — Coverage + sanity check giá trị + verify monthly means
+
+Kiểm tra:
+1. Số quốc gia + coverage
+Cell  42: ## 3.0 — Reload (khi mở Colab giữa chừng, chạy SESSION 0 trước rồi cell này)
+
+Cell này build lại `fl
+Cell  44: ## 3.1 — Chuẩn bị FluNet để merge
+
+Tạo `flu_m` từ `flu_filt`:
+- Rename: `COUNTRY_CODE` → `iso3`, `IS
+Cell  46: ## 3.2 — Chuẩn bị Dengue để merge
+
+Phức tạp hơn FluNet vì:
+1. Phải **derive `iso_week`** từ `calenda
+Cell  48: ## 3.3 — Verify country coverage giữa 3 nguồn
+
+Kiểm tra số quốc gia khớp giữa FluNet, Dengue, ERA5. 
+Cell  50: ## 3.4 — Merge FluNet + ERA5
+
+`flu_m INNER JOIN era5 ON (iso3, iso_year, iso_week)`.
+
+INNER JOIN vì:
+Cell  52: ## 3.5 — Merge Dengue + ERA5
+
+`dengue_m INNER JOIN era5 ON (iso3, iso_year, iso_week)`.
+
+Tương tự fl
+Cell  54: ## 3.6 — Combine flu + dengue + ERA5 → master_weekly_v1.csv
+
+Chiến lược:
+1. **OUTER JOIN** `flu_m` v
+Cell  56: ## 3.7 — Sanity check master file
+
+Reload từ disk (verify file đọc lại được) và kiểm tra:
+1. Shape +
+Cell  60: ## 4.0 — Reload master file (khi mở Colab giữa chừng)
+
+Load `master_weekly_v1.csv` từ Drive vào biến
+Cell  62: ## 4.1 — Distribution target (raw vs log1p)
+
+Plot histogram của `influenza_total` và `dengue_total` 
+Cell  64: ## 4.2 — Coverage heatmap: nước × năm
+
+Vẽ 2 heatmap: flu và dengue, mỗi cell = số tuần báo cáo của (
+Cell  66: ## 4.3 — Seasonality: peak week flu (theo hemisphere) + dengue
+
+Vẽ 3 biểu đồ:
+1. Flu Northern Hemisp
+Cell  68: ## 4.4 — Cross-Correlation Function (CCF): weather → disease
+
+Mục tiêu: tìm lag tối ưu giữa các biến
+Cell  70: ## 4.5 — Case studies: Brazil, USA, Vietnam
+
+Vẽ time-series 2017-2019 cho 3 nước:
+- **BRA (Brazil)**
+Cell  72: ## 4.6 — Tổng kết quyết định EDA
+
+Tổng hợp tất cả quyết định từ [4.1] → [4.5] để áp ở SESSION 5 (fea
+Cell  75: ## 5.0 — Reload master (khi mở Colab giữa chừng)
+
+Giống [4.0]. Bỏ qua nếu vừa chạy xong SESSION 4.
+Cell  77: ## 5.1 — Helper functions
+
+Các hàm dùng chung cho cả flu và dengue:
+- `add_lag_features(df, col, lag
+Cell  79: ## 5.2 — Build features FLU (2010-2019)
+
+Áp lag từ CCF SESSION 4. Feature set cuối:
+
+| Nhóm | Featur
+Cell  81: ## 5.3 — Build features DENGUE (2015-2019)
+
+Áp lag từ CCF SESSION 4. Training window thu hẹp 2015-20
+Cell  83: ## 5.4 — Endemic channel labels (Bortman 1999)
+
+Tính ngưỡng baseline per (iso3, iso_week) từ trainin
+Cell  85: ## 5.5 — Save 2 feature files + verify
+
+Lưu vào Drive `dataset/processed/`:
+- `features_flu_v1.csv` 
+Cell  89: ## 6.0 — Reload feature files
+
+Load `features_flu_v1.csv` và `features_dengue_v1.csv` từ Drive.
+Cell  91: ## 6.1 — Walk-forward CV (time-series rigorous)
+
+**Strategy: walk-forward CV** — train trên past, va
+Cell  93: ## 6.2 — Baseline Naive (same-week-last-year) — walk-forward CV
+
+Predict: `y_val[iso3, week] = y_tra
+Cell  95: ## 6.3 — Baseline Prophet (per country) — top 30 nước
+
+Prophet (Facebook 2017) là **seasonality deco
+Cell  97: ## 6.4 — XGBoost Regressor (walk-forward CV)
+
+Train XGBoost với default params (sẽ Optuna tune ở [6.
+Cell  99: ## 6.5 — LightGBM Regressor
+
+LightGBM (Microsoft) — gradient boosting nhanh hơn XGBoost ~2-3x trên C
+Cell 101: ## 6.6 — Random Forest Regressor
+
+Random Forest (Breiman 2001) — bagging ensemble of trees. Khác gra
+Cell 103: ## 6.7 — Bảng so sánh 4 regression models + feature importance
+
+Compile RESULTS dict thành bảng so s
+Cell 105: ## 6.7b — Overfitting Diagnostic (model chiến thắng)
+
+Kiểm tra overfitting bằng 3 góc độ cho **Light
+Cell 107: ## 6.8 — XGBClassifier cho risk class (Low/Medium/High)
+
+Branch B của hybrid approach: classificatio
+Cell 109: ## 6.9 — Optuna tune top model (60 trials)
+
+Tune hyperparameters cho:
+- **Flu LightGBM** (top model 
+Cell 111: ## 6.10 — Save final models v1
+
+Refit tuned models trên **FULL training data** (flu 2010-2018, dengu
+Cell 115: ## 7.A — Download + process ERA5 2022 (DOCUMENTATION ONLY)
+
+Tương tự [2.B] [2.C] cho dữ liệu 2010-20
+Cell 117: ## 7.0 — Reload models + ERA5 2022 + raw data
+
+Load 4 model artifacts + ERA5 2022 (file riêng, 1.2MB
+Cell 119: ## 7.0b — Verify ERA5 2022 schema
+
+ERA5 2022 chỉ có 9 cột (file 2010-2019 có 21 cột) → có thể downlo
+Cell 121: ## 7.1 — Build features 2022 flu
+
+Áp pipeline feature engineering giống SESSION 5 nhưng cho data 202
+Cell 123: ## 7.2 — Build features 2022 dengue
+
+Logic giống SESSION 5 [5.3]: build complete grid → fillna(0) → 
+Cell 125: ## 7.3 — Predict regression + evaluate 2022 hold-out
+
+Load 4 models v1, predict trên features 2022, 
+Cell 127: ## 7.4 — Predict classification + evaluate 2022 hold-out
+
+Để tính risk class 2022, cần endemic chann
+Cell 129: ## 7.5 — Bảng so sánh tổng hợp CV vs 2022 hold-out
+
+Tổng kết validation: CV mean (training years) vs
+Cell 131: ## 7.6 — Save artifacts SESSION 7 (validation results 2022)
+
+Lưu kết quả validation 2022 ra file để 
+Cell 135: ## 8.0 — Reload (khi mở Colab giữa chừng)
+
+Chạy SESSION 0 trước, sau đó cell này để load paths + fea
+Cell 137: ## 8.1 — Build multi-horizon targets (flu)
+
+Shift `flu_log` forward h tuần per iso3 để tạo target tư
+Cell 139: ## 8.2 — Build multi-horizon targets (dengue)
+
+Tương tự 8.1 cho dengue. Lưu ý đặt tên `deng_log_targ
+Cell 141: ## 8.3 — Walk-forward CV: flu multi-horizon (h=1,2,3,4)
+
+CV scheme giống SESSION 6: val_year lần lượ
+Cell 143: ## 8.4 — Train final flu models (full 2010-2019) + save 4 pkl artifacts
+
+Sau khi xác nhận CV chấp nh
+Cell 145: ## 8.5 — Walk-forward CV + train final dengue multi-horizon
+
+Gộp CV và train final trong 1 cell vì d
+Cell 147: ## 8.6 — Bảng so sánh R² theo horizon (flu + dengue)
+
+Tổng hợp R² CV của cả 2 disease × 4 horizons đ
