@@ -229,6 +229,10 @@ __marimo__/
 # KLTN EpiWeather — Project-specific
 # ============================================================
 
+# IDE caches
+.codegraph/
+.codex/
+
 # ERA5 raw NetCDF files — 6.2GB, download lại được từ CDS API
 dataset/weather/era5_raw/
 *.nc
