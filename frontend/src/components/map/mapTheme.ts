@@ -1,3 +1,5 @@
+import type { RiskLevel } from "../../types/domain";
+
 export type MapTheme = "dark" | "light";
 
 export const MAP_THEME_STORAGE_KEY = "epiwatch-map-theme";
@@ -12,6 +14,10 @@ export interface MapThemePalette {
 	tooltipBackground: string;
 	tooltipBorder: string;
 	tooltipText: string;
+	surface: string;
+	surfaceBorder: string;
+	mutedText: string;
+	riskColors: Record<RiskLevel, string>;
 }
 
 export const MAP_THEME_PALETTES: Record<MapTheme, MapThemePalette> = {
@@ -25,6 +31,15 @@ export const MAP_THEME_PALETTES: Record<MapTheme, MapThemePalette> = {
 		tooltipBackground: "var(--color-map-dark-tooltip)",
 		tooltipBorder: "var(--color-map-dark-tooltip-border)",
 		tooltipText: "var(--color-map-dark-text)",
+		surface: "var(--color-map-dark-surface)",
+		surfaceBorder: "var(--color-map-dark-surface-border)",
+		mutedText: "var(--color-map-dark-muted)",
+		riskColors: {
+			none: "var(--color-map-dark-risk-none)",
+			low: "var(--color-map-dark-risk-low)",
+			medium: "var(--color-map-dark-risk-med)",
+			high: "var(--color-map-dark-risk-high)",
+		},
 	},
 	light: {
 		canvas: "var(--color-map-light-ocean)",
@@ -36,6 +51,15 @@ export const MAP_THEME_PALETTES: Record<MapTheme, MapThemePalette> = {
 		tooltipBackground: "var(--color-map-light-tooltip)",
 		tooltipBorder: "var(--color-map-light-tooltip-border)",
 		tooltipText: "var(--color-map-light-text)",
+		surface: "var(--color-map-light-surface)",
+		surfaceBorder: "var(--color-map-light-surface-border)",
+		mutedText: "var(--color-map-light-muted)",
+		riskColors: {
+			none: "var(--color-map-light-risk-none)",
+			low: "var(--color-map-light-risk-low)",
+			medium: "var(--color-map-light-risk-med)",
+			high: "var(--color-map-light-risk-high)",
+		},
 	},
 };
 
@@ -57,5 +81,14 @@ export function resolveMapThemePalette(theme: MapTheme): MapThemePalette {
 		tooltipBackground: resolveColor(palette.tooltipBackground),
 		tooltipBorder: resolveColor(palette.tooltipBorder),
 		tooltipText: resolveColor(palette.tooltipText),
+		surface: resolveColor(palette.surface),
+		surfaceBorder: resolveColor(palette.surfaceBorder),
+		mutedText: resolveColor(palette.mutedText),
+		riskColors: {
+			none: resolveColor(palette.riskColors.none),
+			low: resolveColor(palette.riskColors.low),
+			medium: resolveColor(palette.riskColors.medium),
+			high: resolveColor(palette.riskColors.high),
+		},
 	};
 }

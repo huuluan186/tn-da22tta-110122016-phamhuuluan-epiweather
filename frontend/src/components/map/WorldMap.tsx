@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { RISK_LEVELS } from "../../constants";
 import { ECHARTS_COUNTRY_NAMES } from "../../lib/mockRisk";
 import type { RiskEntry } from "../../types/api";
+import { resolveMapThemePalette, type MapTheme, type MapThemePalette } from "./mapTheme";
 
 let mapRegistered = false;
 
@@ -19,21 +20,21 @@ interface MapDataItem {
   name: string;
   value: number;
   risk: keyof typeof RISK_LEVELS;
-  itemStyle: { areaColor: string };
+  itemStyle: { areaColor: string; borderColor?: string };
 }
 
-function buildOption(data: MapDataItem[]) {
+function buildOption(data: MapDataItem[], palette: MapThemePalette) {
   return {
-    backgroundColor: "transparent",
+    backgroundColor: palette.canvas,
     tooltip: {
       trigger: "item",
-      backgroundColor: "#1a1f2e",
-      borderColor: "#2a3040",
-      textStyle: { color: "#f1f5f9", fontFamily: "Inter" },
+      backgroundColor: palette.tooltipBackground,
+      borderColor: palette.tooltipBorder,
+      textStyle: { color: palette.tooltipText, fontFamily: "Inter" },
       formatter: (p: { name: string; value: number; data?: MapDataItem }) => {
         if (!p.value && p.value !== 0) return `<b>${p.name}</b><br/>Chưa có dữ liệu`;
         const r = p.data?.risk ?? "none";
-        const badge = `<span style="display:inline-block;margin-right:6px;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:3px;background:${RISK_LEVELS[r].color};color:white;">${RISK_LEVELS[r].label}</span>`;
+        const badge = `<span style="display:inline-block;margin-right:6px;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:3px;background:${palette.riskColors[r]};color:white;">${RISK_LEVELS[r].label}</span>`;
         return `<b>${p.name}</b><br/><br/>${badge} Xác suất rủi ro: <span style="font-weight:bold;font-size:14px;">${p.value}%</span>`;
       },
     },
@@ -43,9 +44,9 @@ function buildOption(data: MapDataItem[]) {
         map: "world",
         roam: true,
         scaleLimit: { min: 1, max: 8 },
-        itemStyle: { areaColor: "#2a3040", borderColor: "#1a1f2e", borderWidth: 0.5 },
+        itemStyle: { areaColor: palette.land, borderColor: palette.border, borderWidth: 0.5 },
         emphasis: {
-          itemStyle: { areaColor: "#3b82f6", borderColor: "#ffffff", borderWidth: 1 },
+          itemStyle: { areaColor: palette.emphasis, borderColor: palette.emphasisBorder, borderWidth: 1 },
           label: { show: false },
         },
         data,
@@ -56,13 +57,15 @@ function buildOption(data: MapDataItem[]) {
 
 interface Props {
   entries: RiskEntry[];
+  theme: MapTheme;
   onCountrySelect: (echartName: string) => void;
 }
 
-export default function WorldMap({ entries, onCountrySelect }: Props) {
+export default function WorldMap({ entries, theme, onCountrySelect }: Props) {
   const elRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
   const [ready, setReady] = useState(false);
+  const palette = useMemo(() => resolveMapThemePalette(theme), [theme]);
 
   const mapData = useMemo<MapDataItem[]>(() => {
     return entries
@@ -71,9 +74,9 @@ export default function WorldMap({ entries, onCountrySelect }: Props) {
         name: ECHARTS_COUNTRY_NAMES[e.iso3],
         value: e.score,
         risk: e.risk,
-        itemStyle: { areaColor: RISK_LEVELS[e.risk].color },
+        itemStyle: { areaColor: palette.riskColors[e.risk], borderColor: palette.riskBorder },
       }));
-  }, [entries]);
+  }, [entries, palette.riskBorder, palette.riskColors]);
 
   const mapDataRef = useRef(mapData);
   useEffect(() => {
@@ -110,7 +113,7 @@ export default function WorldMap({ entries, onCountrySelect }: Props) {
       if (width < 1 || height < 1) return;
       ch = echarts.init(el);
       chartRef.current = ch;
-      ch.setOption(buildOption(mapDataRef.current));
+      ch.setOption(buildOption(mapDataRef.current, palette));
       ch.on("click", (params: { name?: string }) => {
         if (params.name) onSelectRef.current(params.name);
       });
@@ -134,7 +137,11 @@ export default function WorldMap({ entries, onCountrySelect }: Props) {
       ch?.dispose();
       chartRef.current = null;
     };
-  }, [ready]);
+  }, [ready, palette]);
+
+  useEffect(() => {
+    chartRef.current?.setOption(buildOption(mapData, palette));
+  }, [mapData, palette]);
 
   useEffect(() => {
     chartRef.current?.setOption({
@@ -149,7 +156,7 @@ export default function WorldMap({ entries, onCountrySelect }: Props) {
   }, [mapData]);
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ background: palette.canvas }}>
       {!ready && (
         <div className="absolute inset-0 grid place-items-center text-[var(--color-text-3)] text-xs">
           Đang tải bản đồ thế giới…

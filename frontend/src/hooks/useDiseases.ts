@@ -10,8 +10,6 @@ function isDiseaseId(code: string): code is DiseaseId {
 
 const FALLBACK_DISEASES: DiseaseDef[] = SUPPORTED_DISEASE_IDS.map((id) => ({
 	id,
-	label: id.toUpperCase(),
-	description: "",
 	...DISEASE_PRESENTATION[id],
 }));
 
@@ -36,9 +34,9 @@ export function useDiseases() {
 
 			return {
 				id,
+				...DISEASE_PRESENTATION[id],
 				label: item.display_name_vi || item.display_name,
 				description: item.description_vi || item.description || "",
-				...DISEASE_PRESENTATION[id],
 			};
 		});
 	}, [query.data]);

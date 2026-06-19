@@ -9,10 +9,14 @@ export interface DiseaseMetrics {
 }
 
 export interface DiseaseListItem {
-  disease: string;
-  loaded: boolean;
-  features_count: number;
-  metrics: DiseaseMetrics;
+  id: number;
+  code: string;
+  display_name: string;
+  display_name_vi?: string | null;
+  target_variable: string;
+  target_transform: string;
+  description?: string | null;
+  description_vi?: string | null;
 }
 
 export async function fetchDiseases(): Promise<DiseaseListItem[]> {

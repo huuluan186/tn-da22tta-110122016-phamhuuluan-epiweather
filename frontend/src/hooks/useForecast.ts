@@ -7,11 +7,12 @@ export function useForecast(
   iso3: string | undefined,
   asOfYear: number,
   asOfWeek: number,
+  options?: { enabled?: boolean },
 ) {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["forecast", disease, iso3, asOfYear, asOfWeek],
     queryFn: () => fetchForecast(disease, iso3!, asOfYear, asOfWeek),
-    enabled: Boolean(iso3),
+    enabled: Boolean(iso3) && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

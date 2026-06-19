@@ -3,10 +3,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import AlertsSidebar from "../components/alerts/AlertsSidebar";
 import MapLegend from "../components/map/MapLegend";
+import MapThemeToggle from "../components/map/MapThemeToggle";
 import WorldMap from "../components/map/WorldMap";
+import { MAP_THEME_STORAGE_KEY, type MapTheme } from "../components/map/mapTheme";
 import RiskMapSidebar from "../components/sidebar/RiskMapSidebar";
-import { DISEASES, RISK_LEVELS, WHO_REGIONS } from "../constants";
+import { RISK_LEVELS, WHO_REGIONS } from "../constants";
 import { useCountries } from "../hooks/useCountries";
+import { useDiseases } from "../hooks/useDiseases";
 import { useForecast, useNowcast } from "../hooks/useForecast";
 import { usePrediction } from "../hooks/usePrediction";
 import { useLatestRiskMap, useRiskMap } from "../hooks/useRiskMap";
@@ -39,6 +42,10 @@ export default function HomePage() {
   const [isRightOpen, setIsRightOpen] = useState(true);
   const [isLeftOpen, setIsLeftOpen] = useState(true);
   const [isDetailOpen, setIsDetailOpen] = useState(true);
+  const [mapTheme, setMapTheme] = useState<MapTheme>(() => {
+    const saved = window.localStorage.getItem(MAP_THEME_STORAGE_KEY);
+    return saved === "light" ? "light" : "dark";
+  });
   // Collapsible sections in right sidebar country detail
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     info: true,
@@ -50,12 +57,17 @@ export default function HomePage() {
 
   // applied = null → dùng latest (mặc định); != null → dùng backtest
   const [applied, setApplied] = useState<Applied>(null);
-  const activeDisease = DISEASES.find((d) => d.id === disease)!;
+  const { getDisease } = useDiseases();
+  const activeDisease = getDisease(disease);
   const isHistorical = applied !== null;
 
   useEffect(() => {
     if (selectedIso3) setIsDetailOpen(true);
   }, [selectedIso3]);
+
+  useEffect(() => {
+    window.localStorage.setItem(MAP_THEME_STORAGE_KEY, mapTheme);
+  }, [mapTheme]);
 
   // Khi user đổi disease, reset applied về null (latest mode) để tránh
   // hiển thị bản đồ flu năm cũ đè lên dengue
@@ -229,9 +241,11 @@ export default function HomePage() {
                   MỚI NHẤT
                 </span>
               )}
-              <span>
-                Tuần {String(activeWeek).padStart(2, "0")} · {activeYear}
+              <span className="grid min-w-[72px] gap-0.5 text-right leading-tight">
+                <span className="text-[var(--color-text-1)]">Tuần {String(activeWeek).padStart(2, "0")}</span>
+                <span>Năm {activeYear}</span>
               </span>
+              <MapThemeToggle theme={mapTheme} onChange={setMapTheme} />
               {active.isFetching && (
                 <span className="text-[var(--color-text-3)] animate-pulse">· đang cập nhật</span>
               )}
@@ -252,13 +266,14 @@ export default function HomePage() {
           )}
           <WorldMap
             entries={filteredEntries}
+            theme={mapTheme}
             onCountrySelect={(echartsName) => {
               const iso3 = ISO3_BY_ECHARTS_NAME[echartsName];
               if (!iso3) return;
               setSelectedIso3(iso3);
             }}
           />
-          <MapLegend />
+          <MapLegend theme={mapTheme} />
         </div>
       </div>
 

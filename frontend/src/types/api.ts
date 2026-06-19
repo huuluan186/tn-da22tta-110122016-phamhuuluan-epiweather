@@ -36,8 +36,7 @@ export interface PredictionPoint {
   predicted_value: number | null;
   predicted_cases: number | null;
   risk_level: string | null;
-  risk_q33: number | null;
-  risk_q67: number | null;
+  risk_probability: number | null;
   confidence_lo: number | null;
   confidence_hi: number | null;
 }

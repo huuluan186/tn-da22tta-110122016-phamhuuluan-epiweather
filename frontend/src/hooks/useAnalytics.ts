@@ -17,10 +17,23 @@ export interface ModelPerformance {
   horizons: HorizonMetric[];
 }
 
+export interface FeatureMetadata {
+  feature: string;
+  display_name_vi: string | null;
+  description_vi: string | null;
+  source_type: string | null;
+}
+
+export interface FeatureImportanceItem extends FeatureMetadata {
+  importance?: number | null;
+}
+
 export interface FeatureImportance {
   disease: string;
   horizon: number;
   features: string[];
+  feature_metadata?: FeatureMetadata[];
+  importance?: FeatureImportanceItem[];
   target: string;
   model_type: string;
   training_date: string;
