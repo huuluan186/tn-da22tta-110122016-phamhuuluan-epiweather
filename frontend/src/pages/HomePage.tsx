@@ -210,6 +210,8 @@ export default function HomePage() {
         setYear={setYear}
         week={week}
         setWeek={setWeek}
+        activeYear={activeYear}
+        activeWeek={activeWeek}
         regions={regions}
         toggleRegion={toggleRegion}
         entries={filteredEntries}

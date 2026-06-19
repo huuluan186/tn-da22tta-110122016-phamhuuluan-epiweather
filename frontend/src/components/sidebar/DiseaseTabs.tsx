@@ -1,4 +1,4 @@
-import { DISEASES } from "../../constants";
+import { useDiseases } from "../../hooks/useDiseases";
 import type { DiseaseId } from "../../types/domain";
 
 interface Props {
@@ -7,9 +7,11 @@ interface Props {
 }
 
 export default function DiseaseTabs({ value, onChange }: Props) {
+  const { diseases } = useDiseases();
+
   return (
     <div className="flex flex-col gap-1">
-      {DISEASES.map((d) => {
+      {diseases.map((d) => {
         const active = value === d.id;
         return (
           <button

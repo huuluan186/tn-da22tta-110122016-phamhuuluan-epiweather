@@ -1,4 +1,4 @@
-import { DISEASES } from "../../constants";
+import { useDiseases } from "../../hooks/useDiseases";
 import type { RiskEntry } from "../../types/api";
 import type { DiseaseId } from "../../types/domain";
 import DiseaseTabs from "./DiseaseTabs";
@@ -13,6 +13,8 @@ interface Props {
   setYear: (y: number) => void;
   week: number;
   setWeek: (w: number) => void;
+  activeYear: number;
+  activeWeek: number;
   regions: string[];
   toggleRegion: (id: string) => void;
   entries: RiskEntry[];
@@ -52,8 +54,9 @@ function SideSection({
 }
 
 export default function RiskMapSidebar(props: Props) {
-  const activeDisease = DISEASES.find((d) => d.id === props.disease)!;
-  const selectedWeekLabel = `W${String(props.week).padStart(2, "0")} · ${props.year}`;
+  const { getDisease } = useDiseases();
+  const activeDisease = getDisease(props.disease);
+  const selectedWeekLabel = `Tuần ${String(props.week).padStart(2, "0")} · Năm ${props.year}`;
   const applyTitle = props.isApplying
     ? "Đang tải dữ liệu dự báo"
     : props.isDirty
@@ -147,7 +150,12 @@ export default function RiskMapSidebar(props: Props) {
           </SideSection>
 
           <SideSection label={`Tóm tắt · ${activeDisease.label}`} flex>
-            <SummaryStats disease={props.disease} week={props.week} entries={props.entries} />
+            <SummaryStats
+              disease={props.disease}
+              year={props.activeYear}
+              week={props.activeWeek}
+              entries={props.entries}
+            />
           </SideSection>
         </>
       )}

@@ -1,4 +1,5 @@
-import { DISEASES, RISK_LEVELS } from "../../constants";
+import { RISK_LEVELS } from "../../constants";
+import { useDiseases } from "../../hooks/useDiseases";
 import type { DiseaseId } from "../../types/domain";
 
 export interface AlertCountry {
@@ -20,7 +21,8 @@ interface Props {
 }
 
 export default function AlertItem({ item, isSelected, onSelect }: Props) {
-  const d = DISEASES.find((x) => x.id === item.disease)!;
+  const { getDisease } = useDiseases();
+  const d = getDisease(item.disease);
 
   return (
     <div

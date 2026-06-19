@@ -1,7 +1,8 @@
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef } from "react";
-import { DISEASES } from "../constants";
-import { useFeatureImportance, useModelPerformance } from "../hooks/useAnalytics";
+import FeatureTooltip from "../components/common/FeatureTooltip";
+import { useFeatureImportance, useModelPerformance, type FeatureMetadata } from "../hooks/useAnalytics";
+import { useDiseases } from "../hooks/useDiseases";
 import { useLatestRiskMap } from "../hooks/useRiskMap";
 import { useUIStore } from "../store/uiStore";
 import type { RiskEntry } from "../types/api";
@@ -194,47 +195,18 @@ function HorizonMetricsChart({
   return <div ref={ref} className="w-full h-[260px]" />;
 }
 
-const FEATURE_LABEL: Record<string, string> = {
-  flu_log_lag1: "Cases lag 1w (AR)",
-  flu_log_lag2: "Cases lag 2w (AR)",
-  flu_log_lag3: "Cases lag 3w (AR)",
-  flu_log_rollmean4: "Cases rolling mean 4w",
-  flu_log_rollmean8: "Cases rolling mean 8w",
-  dengue_log_lag1: "Cases lag 1w (AR)",
-  dengue_log_lag2: "Cases lag 2w (AR)",
-  dengue_log_lag4: "Cases lag 4w (AR)",
-  dengue_log_rollmean4: "Cases rolling mean 4w",
-  dengue_log_rollmean12: "Cases rolling mean 12w",
-  temp_c_lag1: "Temperature lag 1w",
-  temp_c_lag3: "Temperature lag 3w",
-  temp_c_lag4: "Temperature lag 4w",
-  temp_c_lag7: "Temperature lag 7w",
-  humidity_pct_lag1: "Humidity lag 1w",
-  humidity_pct_lag2: "Humidity lag 2w",
-  humidity_pct_lag7: "Humidity lag 7w",
-  humidity_pct_lag8: "Humidity lag 8w",
-  solar_wm2_lag4: "Solar radiation lag 4w",
-  solar_wm2_lag7: "Solar radiation lag 7w",
-  solar_wm2_lag8: "Solar radiation lag 8w",
-  solar_wm2_lag16: "Solar radiation lag 16w",
-  dewpoint_c_lag1: "Dew point lag 1w",
-  dewpoint_c_lag2: "Dew point lag 2w",
-  precip_mm: "Precipitation",
-  iso_week_sin: "Seasonality (sin)",
-  iso_week_cos: "Seasonality (cos)",
-  iso_year: "Year trend",
-  HEMISPHERE_NH: "Northern hemisphere",
-  HEMISPHERE_SH: "Southern hemisphere",
-};
-
-function featureLabel(name: string): string {
-  return FEATURE_LABEL[name] ?? name;
+function sourceTypeLabel(sourceType: string | null): string {
+  if (sourceType === "weather") return "Khí hậu";
+  if (sourceType === "autoregressive") return "Dịch tễ quá khứ";
+  if (sourceType === "temporal") return "Thời gian/mùa vụ";
+  return "Biến mô hình";
 }
 
 export default function AnalyticsPage() {
   const disease = useUIStore((s) => s.disease);
   const setDisease = useUIStore((s) => s.setDisease);
-  const d = DISEASES.find((x) => x.id === disease)!;
+  const { diseases, getDisease } = useDiseases();
+  const d = getDisease(disease);
   const themeColor = disease === "flu" ? "#3b82f6" : "#f59e0b";
 
   const { entries, meta, isLoading: mapLoading, isError: mapError } = useLatestRiskMap(disease);
@@ -244,6 +216,31 @@ export default function AnalyticsPage() {
   const totalCountries = entries.length;
   const totalCases = entries.reduce((sum, e) => sum + (e.predictedCases ?? 0), 0);
   const highRiskCount = entries.filter((e) => e.risk === "high").length;
+  const featureRows = useMemo<FeatureMetadata[]>(() => {
+    if (!importance) return [];
+    const metadataByName = new Map(
+      (importance.feature_metadata ?? []).map((item) => [item.feature, item]),
+    );
+
+    if (importance.importance?.length) {
+      return importance.importance.map((item) => ({
+        feature: item.feature,
+        display_name_vi: item.display_name_vi ?? metadataByName.get(item.feature)?.display_name_vi ?? null,
+        description_vi: item.description_vi ?? metadataByName.get(item.feature)?.description_vi ?? null,
+        source_type: item.source_type ?? metadataByName.get(item.feature)?.source_type ?? null,
+      }));
+    }
+
+    return importance.features.map((feature) => {
+      const metadata = metadataByName.get(feature);
+      return metadata ?? {
+        feature,
+        display_name_vi: null,
+        description_vi: null,
+        source_type: null,
+      };
+    });
+  }, [importance]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
@@ -258,7 +255,7 @@ export default function AnalyticsPage() {
             <div className="text-[11px] text-[var(--color-text-3)] mt-0.5">
               {meta ? (
                 <>
-                  Latest predictions: W{String(meta.week).padStart(2, "0")}/{meta.year} · {meta.count} countries
+                  Dự báo mới nhất: Tuần {String(meta.week).padStart(2, "0")} · Năm {meta.year} · {meta.count} quốc gia
                 </>
               ) : mapLoading ? (
                 "Đang tải…"
@@ -268,7 +265,7 @@ export default function AnalyticsPage() {
             </div>
           </div>
           <div className="flex gap-1.5 p-1 bg-[var(--color-surface-2)] rounded-lg">
-            {DISEASES.map((dx) => (
+            {diseases.map((dx) => (
               <button
                 key={dx.id}
                 onClick={() => setDisease(dx.id)}
@@ -288,7 +285,7 @@ export default function AnalyticsPage() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
-              Total predicted cases
+              Tổng số ca dự báo
             </div>
             <div className="text-2xl font-semibold text-[var(--color-text-1)] tabular-nums">
               {mapLoading ? "…" : Math.round(totalCases).toLocaleString()}
@@ -296,7 +293,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
-              High-risk countries
+              Quốc gia rủi ro cao
             </div>
             <div className="text-2xl font-semibold text-[var(--color-risk-high)] tabular-nums">
               {mapLoading ? "…" : highRiskCount}
@@ -304,7 +301,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
-              Countries with data
+              Quốc gia có dữ liệu
             </div>
             <div className="text-2xl font-semibold text-[var(--color-text-1)] tabular-nums">
               {mapLoading ? "…" : totalCountries}
@@ -313,7 +310,7 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Card title="Top 10 Countries" sub={`predicted cases · ${d.label}`}>
+          <Card title="Top 10 quốc gia" sub={`số ca dự báo · ${d.label}`}>
             {mapLoading && <LoadingBlock height={300} />}
             {!mapLoading && mapError && <ErrorBlock height={300} message="API lỗi khi tải risk map." />}
             {!mapLoading && !mapError && entries.length > 0 && (
@@ -322,7 +319,7 @@ export default function AnalyticsPage() {
             {!mapLoading && !mapError && entries.length === 0 && <ErrorBlock height={300} />}
           </Card>
 
-          <Card title="Model Performance" sub="walk-forward CV · h=1..4">
+          <Card title="Hiệu năng mô hình" sub="walk-forward CV · h=1..4">
             {perfLoading && <LoadingBlock height={260} />}
             {!perfLoading && performance && performance.horizons.length > 0 && (
               <>
@@ -337,15 +334,15 @@ export default function AnalyticsPage() {
             )}
           </Card>
 
-          <Card title="Features Used by Model" sub={`h=1 · ${d.label}`} full>
+          <Card title="Biến mô hình sử dụng" sub={`h=1 · ${d.label}`} full>
             {featLoading && <LoadingBlock height={200} />}
-            {!featLoading && importance && importance.features.length > 0 && (
+            {!featLoading && featureRows.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
-                {importance.features.map((f, idx) => {
-                  const isClimate = !f.includes("log") && !f.includes("iso") && !f.includes("HEMI");
+                {featureRows.map((metadata, idx) => {
+                  const isClimate = metadata.source_type === "weather";
                   return (
                     <div
-                      key={f}
+                      key={metadata.feature}
                       className="flex items-center gap-3 text-[12px] px-3 py-2 bg-[var(--color-surface-2)] border border-[var(--color-border-soft)] rounded-md"
                     >
                       <span className="text-[var(--color-text-3)] tabular-nums w-5">
@@ -355,14 +352,16 @@ export default function AnalyticsPage() {
                         className="w-1.5 h-4 rounded-full"
                         style={{ backgroundColor: isClimate ? "#10b981" : themeColor }}
                       />
-                      <span className="text-[var(--color-text-2)] flex-1">{featureLabel(f)}</span>
-                      <span className="text-[10px] text-[var(--color-text-3)] tabular-nums">{f}</span>
+                      <FeatureTooltip metadata={metadata} className="flex-1" />
+                      <span className="text-[10px] text-[var(--color-text-3)]">
+                        {sourceTypeLabel(metadata.source_type)}
+                      </span>
                     </div>
                   );
                 })}
               </div>
             )}
-            {!featLoading && (!importance || importance.features.length === 0) && (
+            {!featLoading && featureRows.length === 0 && (
               <ErrorBlock height={200} />
             )}
             {importance && (

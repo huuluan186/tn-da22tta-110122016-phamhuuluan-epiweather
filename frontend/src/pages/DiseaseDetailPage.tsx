@@ -4,8 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import FeatureTooltip from "../components/common/FeatureTooltip";
 import ForecastChart from "../components/detail/ForecastChart";
-import { DISEASES, RISK_LEVELS } from "../constants";
+import { RISK_LEVELS } from "../constants";
 import { useFeatureImportance, type FeatureMetadata } from "../hooks/useAnalytics";
+import { useDiseases } from "../hooks/useDiseases";
 import { useForecast, useNowcast } from "../hooks/useForecast";
 import { useHistory, usePrediction } from "../hooks/usePrediction";
 import { ECHARTS_COUNTRY_NAMES } from "../lib/mockRisk";
@@ -15,8 +16,8 @@ import type { DiseaseId, RiskLevel } from "../types/domain";
 
 // Năm hợp lệ cho từng disease (phải khớp với data trong predictions table)
 const VALID_YEARS: Record<DiseaseId, { min: number; max: number; hint: string }> = {
-  flu:    { min: 2010, max: 2026, hint: "Backtest 2010-2019 hoặc mới nhất 2026 (W02-W21)" },
-  dengue: { min: 2010, max: 2023, hint: "Backtest 2010-2019 hoặc mới nhất 2021-2023 (W01-W36)" },
+  flu: { min: 2010, max: 2026, hint: "Backtest 2010-2019 hoặc mới nhất Năm 2026, Tuần 02-21" },
+  dengue: { min: 2010, max: 2023, hint: "Backtest 2010-2019 hoặc mới nhất Năm 2021-2023, Tuần 01-36" },
 };
 
 function toRiskLevel(raw: string | null | undefined): RiskLevel {
@@ -123,6 +124,7 @@ export default function DiseaseDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { disease, year: uiYear, week: uiWeek } = useUIStore();
+  const { getDisease } = useDiseases();
 
   // Picker để query tuần backtest — null = dùng latest nowcast
   const [pickerYear, setPickerYear] = useState<number | null>(null);
@@ -206,7 +208,7 @@ export default function DiseaseDetailPage() {
   }
 
   const countryName = ECHARTS_COUNTRY_NAMES[iso3] ?? iso3;
-  const d = DISEASES.find((x) => x.id === disease)!;
+  const d = getDisease(disease);
   const { prediction, isLoading: predictionLoading } = usePrediction(
     disease,
     iso3,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { DISEASES } from "../../constants";
+import { useDiseases } from "../../hooks/useDiseases";
 import type { RiskEntry } from "../../types/api";
 import type { DiseaseId } from "../../types/domain";
 import AlertItem, { type AlertCountry } from "./AlertItem";
@@ -13,6 +13,8 @@ interface Props {
 
 export default function AlertsSidebar({ entries, disease, selectedIso3, onSelect }: Props) {
   const [sortBy, setSortBy] = useState<"score" | "name">("score");
+  const { getDisease } = useDiseases();
+  const activeDisease = getDisease(disease);
 
   const filtered = useMemo(() => {
     const list: AlertCountry[] = entries
@@ -49,7 +51,7 @@ export default function AlertsSidebar({ entries, disease, selectedIso3, onSelect
           </span>
         </h3>
         <span className="text-[11px] text-[var(--color-text-3)]">
-          {DISEASES.find((d) => d.id === disease)?.label}
+          {activeDisease.label}
         </span>
       </div>
 

@@ -21,16 +21,16 @@ const DISEASE_CONFIG: Record<
 > = {
   flu: {
     backtest: Array.from({ length: 10 }, (_, i) => 2010 + i),
-    latest: [{ year: 2026, label: "2026 (W02-W21)" }],
+    latest: [{ year: 2026, label: "Năm 2026 · Tuần 02-21" }],
     weekRange: { 2026: { min: 2, max: 21 } },
     defaultYear: 2026,
   },
   dengue: {
     backtest: Array.from({ length: 10 }, (_, i) => 2010 + i),
     latest: [
-      { year: 2023, label: "2023 (W01-W36)" },
-      { year: 2022, label: "2022" },
-      { year: 2021, label: "2021" },
+      { year: 2023, label: "Năm 2023 · Tuần 01-36" },
+      { year: 2022, label: "Năm 2022" },
+      { year: 2021, label: "Năm 2021" },
     ],
     weekRange: { 2023: { min: 1, max: 36 } },
     defaultYear: 2023,
@@ -49,8 +49,8 @@ function getHintText(disease: DiseaseId, y: number): string {
   if (!isLatestPeriod(disease, y)) {
     return "Backtest: mô phỏng dự báo trên dữ liệu quá khứ để so sánh/đánh giá";
   }
-  if (disease === "flu") return "Mới nhất: 2026-W02 đến W21 · dự báo từ mô hình ML";
-  if (y === 2023) return "Mới nhất: 2023-W01 đến W36 · dữ liệu hiện có từ nguồn dịch tễ + thời tiết";
+  if (disease === "flu") return "Mới nhất: Tuần 02-21, Năm 2026 · dự báo từ mô hình ML";
+  if (y === 2023) return "Mới nhất: Tuần 01-36, Năm 2023 · dữ liệu hiện có từ nguồn dịch tễ + thời tiết";
   return `Mới nhất: ${y} · tuần có dữ liệu dự báo trong hệ thống`;
 }
 
@@ -102,7 +102,7 @@ export default function WeekPicker({ disease, year, week, onYearChange, onWeekCh
           <Icon name="chevron-left" size={14} />
         </button>
         <div className="flex-1 h-8 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md flex items-center justify-center text-xs font-semibold">
-          W{String(safeWeek).padStart(2, "0")}
+          Tuần {String(safeWeek).padStart(2, "0")}
         </div>
         <button
           onClick={() => onWeekChange(Math.min(maxWeek, safeWeek + 1))}
@@ -120,9 +120,9 @@ export default function WeekPicker({ disease, year, week, onYearChange, onWeekCh
         />
       </div>
       <div className="mt-1 flex justify-between text-[10px] text-[var(--color-text-3)] tabular-nums">
-        <span>W{String(minWeek).padStart(2, "0")}</span>
-        <span>W{String(safeWeek).padStart(2, "0")} / W{String(maxWeek).padStart(2, "0")}</span>
-        <span>W{String(maxWeek).padStart(2, "0")}</span>
+        <span>Tuần {String(minWeek).padStart(2, "0")}</span>
+        <span>{String(safeWeek).padStart(2, "0")} / {String(maxWeek).padStart(2, "0")}</span>
+        <span>Tuần {String(maxWeek).padStart(2, "0")}</span>
       </div>
     </div>
   );
