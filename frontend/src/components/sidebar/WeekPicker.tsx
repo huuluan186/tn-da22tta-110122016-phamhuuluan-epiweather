@@ -1,67 +1,76 @@
-import Icon from "../common/Icon";
+import type { RiskMapPeriod } from "../../types/api";
 import type { DiseaseId } from "../../types/domain";
+import Icon from "../common/Icon";
 
 interface Props {
   disease: DiseaseId;
   year: number;
   week: number;
+  latestYear?: number;
+  latestWeek?: number;
+  periods?: RiskMapPeriod[];
   onYearChange: (y: number) => void;
   onWeekChange: (w: number) => void;
 }
 
-// Cấu hình per-disease: năm hợp lệ + week range
-const DISEASE_CONFIG: Record<
-  DiseaseId,
-  {
-    backtest: number[];
-    latest: { year: number; label: string }[];
-    weekRange: Record<number, { min: number; max: number }>;
-    defaultYear: number;
+function buildFallbackPeriods(year: number, week: number, latestYear?: number, latestWeek?: number) {
+  const fallbackYear = latestYear ?? year;
+  const fallbackWeek = latestWeek ?? week;
+  return [{ iso_year: fallbackYear, min_week: 1, max_week: Math.max(1, fallbackWeek) }];
+}
+
+function getSortedPeriods(
+  periods: RiskMapPeriod[] | undefined,
+  year: number,
+  week: number,
+  latestYear?: number,
+  latestWeek?: number,
+) {
+  const source = periods?.length ? periods : buildFallbackPeriods(year, week, latestYear, latestWeek);
+  return [...source].sort((a, b) => a.iso_year - b.iso_year);
+}
+
+function getLatest(periods: RiskMapPeriod[], latestYear?: number, latestWeek?: number) {
+  const last = periods[periods.length - 1];
+  return {
+    year: latestYear ?? last.iso_year,
+    week: latestWeek ?? last.max_week,
+  };
+}
+
+function getRange(periods: RiskMapPeriod[], year: number, latest: { year: number; week: number }) {
+  const configured = periods.find((period) => period.iso_year === year);
+  const minWeek = configured?.min_week ?? 1;
+  const maxWeek = configured?.max_week ?? (year === latest.year ? latest.week : 52);
+  return { min: minWeek, max: year === latest.year ? Math.min(maxWeek, latest.week) : maxWeek };
+}
+
+function getHintText(periods: RiskMapPeriod[], year: number, latest: { year: number; week: number }) {
+  const { min } = getRange(periods, year, latest);
+  if (year !== latest.year) {
+    return "Kiểm thử quá khứ: xem lại dự báo trên dữ liệu đã có để so sánh/đánh giá";
   }
-> = {
-  flu: {
-    backtest: Array.from({ length: 10 }, (_, i) => 2010 + i),
-    latest: [{ year: 2026, label: "Năm 2026 · Tuần 02-21" }],
-    weekRange: { 2026: { min: 2, max: 21 } },
-    defaultYear: 2026,
-  },
-  dengue: {
-    backtest: Array.from({ length: 10 }, (_, i) => 2010 + i),
-    latest: [
-      { year: 2023, label: "Năm 2023 · Tuần 01-36" },
-      { year: 2022, label: "Năm 2022" },
-      { year: 2021, label: "Năm 2021" },
-    ],
-    weekRange: { 2023: { min: 1, max: 36 } },
-    defaultYear: 2023,
-  },
-};
-
-function getRange(disease: DiseaseId, y: number) {
-  return DISEASE_CONFIG[disease].weekRange[y] ?? { min: 1, max: 52 };
+  return `Mới nhất: Năm ${year}, Tuần ${String(min).padStart(2, "0")} đến Tuần ${String(latest.week).padStart(2, "0")}`;
 }
 
-function isLatestPeriod(disease: DiseaseId, y: number) {
-  return DISEASE_CONFIG[disease].latest.some((r) => r.year === y);
-}
-
-function getHintText(disease: DiseaseId, y: number): string {
-  if (!isLatestPeriod(disease, y)) {
-    return "Backtest: mô phỏng dự báo trên dữ liệu quá khứ để so sánh/đánh giá";
-  }
-  if (disease === "flu") return "Mới nhất: Tuần 02-21, Năm 2026 · dự báo từ mô hình ML";
-  if (y === 2023) return "Mới nhất: Tuần 01-36, Năm 2023 · dữ liệu hiện có từ nguồn dịch tễ + thời tiết";
-  return `Mới nhất: ${y} · tuần có dữ liệu dự báo trong hệ thống`;
-}
-
-export default function WeekPicker({ disease, year, week, onYearChange, onWeekChange }: Props) {
-  const cfg = DISEASE_CONFIG[disease];
-  const allValid = [...cfg.backtest, ...cfg.latest.map((r) => r.year)];
-
-  const safeYear = allValid.includes(year) ? year : cfg.defaultYear;
-  const { min: minWeek, max: maxWeek } = getRange(disease, safeYear);
+export default function WeekPicker({
+  year,
+  week,
+  latestYear,
+  latestWeek,
+  periods,
+  onYearChange,
+  onWeekChange,
+}: Props) {
+  const validPeriods = getSortedPeriods(periods, year, week, latestYear, latestWeek);
+  const latest = getLatest(validPeriods, latestYear, latestWeek);
+  const validYears = validPeriods.map((period) => period.iso_year);
+  const safeYear = validYears.includes(year) ? year : latest.year;
+  const { min: minWeek, max: maxWeek } = getRange(validPeriods, safeYear, latest);
   const safeWeek = Math.min(Math.max(week, minWeek), maxWeek);
   const pct = maxWeek > minWeek ? ((safeWeek - minWeek) / (maxWeek - minWeek)) * 100 : 0;
+  const latestOption = { year: latest.year, label: `${latest.year} (Tuần ${String(latest.week).padStart(2, "0")})` };
+  const backtestPeriods = validPeriods.filter((period) => period.iso_year !== latest.year);
 
   return (
     <div>
@@ -70,58 +79,64 @@ export default function WeekPicker({ disease, year, week, onYearChange, onWeekCh
           value={safeYear}
           onChange={(e) => {
             const newYear = Number(e.target.value);
+            const { min, max } = getRange(validPeriods, newYear, latest);
+            const nextWeek = newYear === latest.year ? max : Math.min(Math.max(week, min), max);
             onYearChange(newYear);
-            const { min, max } = getRange(disease, newYear);
-            const clampedWeek = Math.min(Math.max(week, min), max);
-            if (clampedWeek !== week) onWeekChange(clampedWeek);
+            if (nextWeek !== week) onWeekChange(nextWeek);
           }}
-          className="flex-1 h-[30px] bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-1)] text-xs font-semibold px-2 text-center cursor-pointer focus:outline-none focus:border-[var(--color-text-3)]"
+          className="flex-1 h-[30px] bg-[#245b8f] border border-[#60a5fa] rounded-md text-white text-xs font-bold px-2 text-center cursor-pointer focus:outline-none focus:border-white"
         >
           <optgroup label="Mới nhất / dữ liệu vận hành">
-            {cfg.latest.map((r) => (
-              <option key={r.year} value={r.year}>{r.label}</option>
-            ))}
+            <option value={latestOption.year}>{latestOption.label}</option>
           </optgroup>
-          <optgroup label="Backtest / kiểm thử quá khứ">
-            {cfg.backtest.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </optgroup>
+          {backtestPeriods.length > 0 && (
+            <optgroup label="Kiểm thử quá khứ">
+              {backtestPeriods.map((period) => (
+                <option key={period.iso_year} value={period.iso_year}>
+                  {period.iso_year}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </div>
-      <div className="mb-2 text-[10px] text-[var(--color-text-3)] leading-tight">
-        {getHintText(disease, safeYear)}
+      <div className="mb-2 text-[10px] text-slate-100 leading-tight">
+        {getHintText(validPeriods, safeYear, latest)}
       </div>
 
       <div className="flex items-center gap-2">
         <button
           onClick={() => onWeekChange(Math.max(minWeek, safeWeek - 1))}
           disabled={safeWeek <= minWeek}
-          className="w-8 h-8 grid place-items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-3)] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-8 h-8 grid place-items-center bg-[var(--color-panel-inset)] border border-[var(--color-panel-border)] rounded-md text-white hover:border-white hover:bg-[var(--color-panel-raised)] disabled:opacity-35 disabled:cursor-not-allowed"
+          aria-label="Tuần trước"
         >
           <Icon name="chevron-left" size={14} />
         </button>
-        <div className="flex-1 h-8 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md flex items-center justify-center text-xs font-semibold">
+        <div className="flex-1 h-8 bg-[#245b8f] border border-[#60a5fa] rounded-md flex items-center justify-center text-xs font-bold text-white">
           Tuần {String(safeWeek).padStart(2, "0")}
         </div>
         <button
           onClick={() => onWeekChange(Math.min(maxWeek, safeWeek + 1))}
           disabled={safeWeek >= maxWeek}
-          className="w-8 h-8 grid place-items-center bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-3)] disabled:opacity-40 disabled:cursor-not-allowed"
+          className="w-8 h-8 grid place-items-center bg-[var(--color-panel-inset)] border border-[var(--color-panel-border)] rounded-md text-white hover:border-white hover:bg-[var(--color-panel-raised)] disabled:opacity-35 disabled:cursor-not-allowed"
+          aria-label="Tuần sau"
         >
           <Icon name="chevron-right" size={14} />
         </button>
       </div>
 
-      <div className="mt-2 h-1 bg-[var(--color-surface-2)] rounded-sm overflow-hidden relative">
+      <div className="mt-2 h-1 bg-[var(--color-panel-inset)] rounded-sm overflow-hidden relative">
         <div
-          className="absolute inset-y-0 left-0 rounded-sm bg-gradient-to-r from-[#3b82f6] to-[#8b5cf6] transition-[width] duration-200"
+          className="absolute inset-y-0 left-0 rounded-sm bg-[#3b82f6] transition-[width] duration-200"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-[var(--color-text-3)] tabular-nums">
+      <div className="mt-1 flex justify-between text-[10px] text-slate-100 tabular-nums">
         <span>Tuần {String(minWeek).padStart(2, "0")}</span>
-        <span>{String(safeWeek).padStart(2, "0")} / {String(maxWeek).padStart(2, "0")}</span>
+        <span>
+          {String(safeWeek).padStart(2, "0")} / {String(maxWeek).padStart(2, "0")}
+        </span>
         <span>Tuần {String(maxWeek).padStart(2, "0")}</span>
       </div>
     </div>

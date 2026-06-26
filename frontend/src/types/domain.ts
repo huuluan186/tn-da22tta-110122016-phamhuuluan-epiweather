@@ -4,7 +4,6 @@ export type RiskLevel = "none" | "low" | "medium" | "high";
 export interface DiseaseDef {
   id: DiseaseId;
   label: string;
-  short: string;
   color: string;
   description: string;
 }

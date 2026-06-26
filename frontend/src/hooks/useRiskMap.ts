@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import api from "../api/axios";
-import type { RiskEntry, RiskMapResponse } from "../types/api";
+import type { RiskEntry, RiskMapPeriodsResponse, RiskMapResponse } from "../types/api";
 import type { DiseaseId, RiskLevel } from "../types/domain";
 
 // Fallback chỉ dùng khi prediction cũ trong DB chưa có risk_probability (NULL).
@@ -53,6 +53,11 @@ async function fetchLatestRiskMap(disease: DiseaseId): Promise<RiskMapResponse> 
   return data;
 }
 
+
+async function fetchRiskMapPeriods(disease: DiseaseId): Promise<RiskMapPeriodsResponse> {
+  const { data } = await api.get<RiskMapPeriodsResponse>(`/risk-map/${disease}/periods`);
+  return data;
+}
 export function useRiskMap(
   disease: DiseaseId,
   year: number,
@@ -72,7 +77,12 @@ export function useRiskMap(
     [data],
   );
 
-  return { entries, isLoading, isError, error, refetch, isFetching };
+  const meta = useMemo(
+    () => (data ? { year: data.iso_year, week: data.iso_week, count: data.count } : null),
+    [data],
+  );
+
+  return { entries, meta, isLoading, isError, error, refetch, isFetching };
 }
 
 export function useLatestRiskMap(disease: DiseaseId, options?: { enabled?: boolean }) {
@@ -97,4 +107,14 @@ export function useLatestRiskMap(disease: DiseaseId, options?: { enabled?: boole
   );
 
   return { entries, meta, isLoading, isError, error, refetch, isFetching };
+}
+export function useRiskMapPeriods(disease: DiseaseId) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["risk-map-periods", disease],
+    queryFn: () => fetchRiskMapPeriods(disease),
+    staleTime: 30 * 60 * 1000,
+    retry: 1,
+  });
+
+  return { periods: data, isLoading, isError, error };
 }

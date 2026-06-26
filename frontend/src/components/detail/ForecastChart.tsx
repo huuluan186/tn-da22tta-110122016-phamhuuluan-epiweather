@@ -16,7 +16,7 @@ export default function ForecastChart({ points, disease }: Props) {
     const ch = echarts.init(elRef.current);
 
     const xLabels = points.map(
-      (p) => `W${String(p.target_iso_week).padStart(2, "0")}/${p.target_iso_year}`,
+      (p) => `Tuần ${String(p.target_iso_week).padStart(2, "0")}/${p.target_iso_year}`,
     );
     const cases = points.map((p) => p.predicted_cases);
     const r2 = points.map((p) => p.r2_cv ?? 0);

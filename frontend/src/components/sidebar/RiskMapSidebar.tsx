@@ -1,5 +1,5 @@
 import { useDiseases } from "../../hooks/useDiseases";
-import type { RiskEntry } from "../../types/api";
+import type { RiskEntry, RiskMapPeriod } from "../../types/api";
 import type { DiseaseId } from "../../types/domain";
 import DiseaseTabs from "./DiseaseTabs";
 import RegionFilter from "./RegionFilter";
@@ -13,12 +13,16 @@ interface Props {
   setYear: (y: number) => void;
   week: number;
   setWeek: (w: number) => void;
+  latestYear?: number;
+  latestWeek?: number;
+  periods?: RiskMapPeriod[];
   activeYear: number;
   activeWeek: number;
   regions: string[];
   toggleRegion: (id: string) => void;
   entries: RiskEntry[];
   regionEntries: RiskEntry[];
+  totalReportingCountries: number;
   onApply: () => void;
   onResetLatest: () => void;
   isApplying: boolean;
@@ -41,11 +45,11 @@ function SideSection({
 }) {
   return (
     <div
-      className={`px-4 pt-3 pb-4 border-b border-[var(--color-border-soft)] last:border-b-0 ${
+      className={`px-4 pt-3 pb-4 border-b border-[var(--color-panel-border)] last:border-b-0 ${
         flex ? "flex-1" : ""
       }`}
     >
-      <div className="text-[10px] font-semibold tracking-[0.08em] text-[var(--color-text-3)] uppercase mb-2.5">
+      <div className="dashboard-section-title mb-2.5">
         {label}
       </div>
       {children}
@@ -74,27 +78,27 @@ export default function RiskMapSidebar(props: Props) {
 
   return (
     <aside
-      className={`shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto flex flex-col transition-all ${
+      className={`shrink-0 border-r border-[var(--color-panel-border)] bg-[var(--color-panel)] overflow-y-auto flex flex-col transition-all ${
         props.isOpen ? "w-[280px]" : "w-[44px]"
       }`}
     >
-      <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-[var(--color-border-soft)]">
+      <div className="flex items-center justify-between px-3 pt-3 pb-2 border-b border-[var(--color-panel-border)] bg-[var(--color-panel-raised)]">
         {props.isOpen && (
-          <div className="text-[10px] font-semibold tracking-[0.08em] text-[var(--color-text-3)] uppercase">
+          <div className="dashboard-panel-title">
             Bộ lọc
           </div>
         )}
         <button
           onClick={props.onToggle}
           aria-label={props.isOpen ? "Thu gọn bộ lọc" : "Mở rộng bộ lọc"}
-          className="ml-auto w-7 h-7 grid place-items-center rounded-md border border-[var(--color-border)] text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:border-[var(--color-text-2)] transition-colors"
+          className="ml-auto w-7 h-7 grid place-items-center rounded-md border border-[var(--color-panel-border)] bg-[var(--color-panel-inset)] text-white hover:border-white hover:bg-[var(--color-panel-raised)] transition-colors"
         >
           {props.isOpen ? "‹" : "›"}
         </button>
       </div>
 
       {!props.isOpen && (
-        <div className="flex-1 grid place-items-center text-[10px] text-[var(--color-text-3)] tracking-[0.2em] rotate-90">
+        <div className="flex-1 grid place-items-center text-[10px] font-bold text-slate-100 tracking-[0.2em] rotate-90">
           BỘ LỌC
         </div>
       )}
@@ -110,6 +114,9 @@ export default function RiskMapSidebar(props: Props) {
               disease={props.disease}
               year={props.year}
               week={props.week}
+              latestYear={props.latestYear}
+              latestWeek={props.latestWeek}
+              periods={props.periods}
               onYearChange={props.setYear}
               onWeekChange={props.setWeek}
             />
@@ -120,7 +127,7 @@ export default function RiskMapSidebar(props: Props) {
                 title={applyTitle}
                 className={`flex-1 h-[34px] rounded-md text-xs font-semibold tracking-wide border transition-colors ${
                   props.isApplying || !props.isDirty
-                    ? "bg-[var(--color-surface-2)] text-[var(--color-text-3)] border-[var(--color-border)] cursor-not-allowed"
+                    ? "bg-[var(--color-panel-inset)] text-slate-400 border-[var(--color-panel-border)] cursor-not-allowed"
                     : "bg-[#3b82f6] text-white border-[#3b82f6] hover:bg-[#2563eb]"
                 }`}
               >
@@ -131,7 +138,7 @@ export default function RiskMapSidebar(props: Props) {
                   onClick={props.onResetLatest}
                   disabled={props.isApplying}
                   title="Quay về tuần mới nhất"
-                  className="h-[34px] px-3 rounded-md text-xs font-semibold border border-[var(--color-border)] bg-[var(--color-surface-3)] text-[var(--color-text-2)] hover:text-[var(--color-text-1)] transition-colors"
+                  className="h-[34px] px-3 rounded-md text-xs font-semibold border border-[var(--color-panel-border)] bg-[var(--color-panel-inset)] text-white hover:border-white hover:bg-[var(--color-panel-raised)] transition-colors"
                 >
                   ⟲ Mới nhất
                 </button>
@@ -155,6 +162,7 @@ export default function RiskMapSidebar(props: Props) {
               year={props.activeYear}
               week={props.activeWeek}
               entries={props.entries}
+              totalReportingCountries={props.totalReportingCountries}
             />
           </SideSection>
         </>

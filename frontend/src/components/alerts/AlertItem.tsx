@@ -4,7 +4,7 @@ import type { DiseaseId } from "../../types/domain";
 
 export interface AlertCountry {
   iso3: string;
-  iso2: string;
+  iso2: string | null;
   name: string;
   region: string;
   disease: DiseaseId;
@@ -23,21 +23,26 @@ interface Props {
 export default function AlertItem({ item, isSelected, onSelect }: Props) {
   const { getDisease } = useDiseases();
   const d = getDisease(item.disease);
+  const countryCode = item.iso2 ?? item.iso3;
+  const countryCodeTitle = item.iso2 ? `Mã ISO2: ${item.iso2}` : `Mã ISO3: ${item.iso3}`;
 
   return (
     <div
-      className={`px-4 py-3 border-b border-[var(--color-border-soft)] cursor-pointer hover:bg-[var(--color-surface-2)] ${
-        isSelected ? "bg-[var(--color-surface-2)]" : ""
+      className={`px-4 py-3 border-b border-[var(--color-panel-border)] border-l-2 cursor-pointer transition-colors hover:bg-[var(--color-panel-raised)] ${
+        isSelected ? "bg-[var(--color-focus-raised)] border-l-[var(--color-focus-accent)]" : "border-l-transparent"
       }`}
       onClick={() => onSelect?.(item.iso3)}
     >
       <div className="flex items-center gap-2">
-        <div className="w-5 h-3.5 rounded-[2px] bg-[var(--color-surface-3)] grid place-items-center text-[9px] font-semibold tracking-wider text-[var(--color-text-3)] shrink-0">
-          {item.iso2}
+        <div
+          className="h-6 min-w-8 px-1.5 rounded-md border border-[var(--color-focus-border)] bg-[var(--color-focus-raised)] grid place-items-center text-[10px] font-bold tracking-[0.1em] text-white shrink-0"
+          title={countryCodeTitle}
+        >
+          {countryCode}
         </div>
-        <div>
-          <div className="font-semibold text-[13px]">{item.name}</div>
-          <div className="text-[11px] text-[var(--color-text-3)]">{item.region}</div>
+        <div className="min-w-0">
+          <div className="font-bold text-white text-[13px]">{item.name}</div>
+          <div className="text-[11px] text-slate-100">{item.region}</div>
         </div>
         {item.timeAgo && (
           <div className="ml-auto text-[10px] text-[var(--color-text-3)]">{item.timeAgo}</div>
@@ -50,7 +55,7 @@ export default function AlertItem({ item, isSelected, onSelect }: Props) {
           style={{ background: d.color + "22", color: d.color }}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: d.color }} />
-          {d.short}
+          {d.label}
         </span>
         <span
           className="inline-flex items-center gap-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] text-white"
@@ -62,7 +67,7 @@ export default function AlertItem({ item, isSelected, onSelect }: Props) {
         </span>
       </div>
 
-      <div className="mt-1.5 flex justify-between text-[11px] text-[var(--color-text-2)] tabular-nums">
+      <div className="mt-1.5 flex justify-between text-[11px] font-medium text-slate-100 tabular-nums">
         <span title="Số ca dự báo cho tuần này (từ model hồi quy)">
           {item.predictedCases !== null
             ? `Dự báo ${Math.round(item.predictedCases).toLocaleString()} ca`

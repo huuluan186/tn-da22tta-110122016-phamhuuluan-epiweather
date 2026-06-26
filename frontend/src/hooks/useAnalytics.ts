@@ -25,7 +25,7 @@ export interface FeatureMetadata {
 }
 
 export interface FeatureImportanceItem extends FeatureMetadata {
-  importance?: number | null;
+  importance: number;
 }
 
 export interface FeatureImportance {
@@ -33,7 +33,7 @@ export interface FeatureImportance {
   horizon: number;
   features: string[];
   feature_metadata?: FeatureMetadata[];
-  importance?: FeatureImportanceItem[];
+  importance: FeatureImportanceItem[];
   target: string;
   model_type: string;
   training_date: string;

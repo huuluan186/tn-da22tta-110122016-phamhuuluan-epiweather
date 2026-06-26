@@ -18,9 +18,10 @@ export async function fetchHistory(
   iso3: string,
   startYear: number,
   endYear: number,
+  limit?: number,
 ): Promise<HistoryResponse> {
   const { data } = await api.get<HistoryResponse>(`/predictions/${disease}/${iso3}/history`, {
-    params: { start_year: startYear, end_year: endYear },
+    params: { start_year: startYear, end_year: endYear, limit },
   });
   return data;
 }

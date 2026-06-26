@@ -1,26 +1,22 @@
-import type { DiseaseDef, DiseaseId, RiskLevel } from "./types/domain";
+import type { DiseaseId, RiskLevel } from "./types/domain";
 
 export const SUPPORTED_DISEASE_IDS: DiseaseId[] = ["flu", "dengue"];
 
-export const DISEASE_PRESENTATION: Record<DiseaseId, Omit<DiseaseDef, "id">> = {
+export const DISEASE_PRESENTATION: Record<
+  DiseaseId,
+  { label: string; description: string; color: string }
+> = {
   flu: {
     label: "Cúm mùa",
-    short: "CÚM",
+    description: "Dự báo nguy cơ cúm theo tuần ISO.",
     color: "#3b82f6",
-    description: "Bệnh hô hấp theo mùa, lây qua giọt bắn và tiếp xúc gần.",
   },
   dengue: {
-    label: "Sốt xuất huyết Dengue",
-    short: "SXH",
+    label: "Sốt xuất huyết",
+    description: "Dự báo nguy cơ sốt xuất huyết theo tuần ISO.",
     color: "#f59e0b",
-    description: "Bệnh do muỗi truyền, bùng phát mạnh theo mùa mưa và khí hậu nóng ẩm.",
   },
 };
-
-export const DISEASES: DiseaseDef[] = SUPPORTED_DISEASE_IDS.map((id) => ({
-  id,
-  ...DISEASE_PRESENTATION[id],
-}));
 
 export const RISK_LEVELS: Record<RiskLevel, { label: string; color: string }> = {
   none: { label: "Không có dữ liệu", color: "#2a3040" },

@@ -2,11 +2,11 @@ import { create } from "zustand";
 import type { DiseaseId } from "../types/domain";
 
 // Mỗi disease có "latest available" week khác nhau:
-// - flu:    latest 2026-W21 (tuần mới nhất hệ thống có dữ liệu dự báo)
+// - flu:    latest 2026-W23 (fallback trước khi API /latest trả về)
 // - dengue: nowcast  2023-W36 (OpenDengue v1.3 tới 9/2023)
 // Khi API /latest trả về thì year/week được đồng bộ lại qua useEffect ở HomePage.
 export const DISEASE_DEFAULTS: Record<DiseaseId, { year: number; week: number }> = {
-  flu:    { year: 2026, week: 21 },
+  flu:    { year: 2026, week: 22 },
   dengue: { year: 2023, week: 36 },
 };
 

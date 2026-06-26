@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Footer from "./components/layout/Footer";
 import TopNav from "./components/layout/TopNav";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -25,7 +25,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/country" element={<DiseaseDetailPage />} />
+          <Route path="/country" element={<Navigate to="/" replace />} />
           <Route path="/country/:iso3" element={<DiseaseDetailPage />} />
         </Routes>
       </main>

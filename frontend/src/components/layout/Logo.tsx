@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 interface Props {
   size?: number;
   textSize?: string;
@@ -8,12 +10,15 @@ export default function Logo({ size = 30, textSize = "text-[15px]", withText = t
   const iconSize = size * 0.78;
 
   return (
-    <div className="flex items-center gap-2.5 font-bold tracking-tight select-none">
+    <Link
+      to="/"
+      aria-label="Về bản đồ rủi ro EpiWeather"
+      className="flex items-center gap-2.5 font-bold tracking-tight select-none rounded-md cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 hover:opacity-85 transition-opacity"
+    >
       <div
-        className="relative rounded-lg bg-[#111827] grid place-items-center shadow-[0_0_18px_rgba(20,184,166,0.32)] ring-1 ring-white/10 overflow-hidden"
+        className="relative rounded-lg bg-[#1d4ed8] grid place-items-center border border-blue-200/40 overflow-hidden"
         style={{ width: size, height: size }}
       >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgba(34,197,94,0.34),transparent_36%),linear-gradient(135deg,#0f766e_0%,#2563eb_52%,#4f46e5_100%)]" />
         <svg
           width={iconSize}
           height={iconSize}
@@ -24,8 +29,8 @@ export default function Logo({ size = 30, textSize = "text-[15px]", withText = t
         >
           <path
             d="M32 6.5 52 14v15.7c0 12.5-8.1 22.9-20 27.8-11.9-4.9-20-15.3-20-27.8V14l20-7.5Z"
-            fill="rgba(15,23,42,0.64)"
-            stroke="rgba(255,255,255,0.86)"
+            fill="#1e3a8a"
+            stroke="#ffffff"
             strokeWidth="3"
             strokeLinejoin="round"
           />
@@ -48,10 +53,10 @@ export default function Logo({ size = 30, textSize = "text-[15px]", withText = t
         </svg>
       </div>
       {withText && (
-        <span className={`${textSize} bg-gradient-to-r from-white via-[#bfdbfe] to-[#5eead4] bg-clip-text text-transparent`}>
-          EpiWatch
+        <span className={`${textSize} text-white`}>
+          EpiWeather
         </span>
       )}
-    </div>
+    </Link>
   );
 }

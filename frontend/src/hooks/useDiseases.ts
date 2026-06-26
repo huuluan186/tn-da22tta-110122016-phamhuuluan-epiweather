@@ -35,8 +35,12 @@ export function useDiseases() {
 			return {
 				id,
 				...DISEASE_PRESENTATION[id],
-				label: item.display_name_vi || item.display_name,
-				description: item.description_vi || item.description || "",
+				label: DISEASE_PRESENTATION[id].label,
+				description:
+					item.description_vi ||
+					DISEASE_PRESENTATION[id].description ||
+					item.description ||
+					"",
 			};
 		});
 	}, [query.data]);

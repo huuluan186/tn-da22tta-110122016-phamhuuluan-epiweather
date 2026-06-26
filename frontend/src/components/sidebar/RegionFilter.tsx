@@ -3,9 +3,9 @@ import { WHO_REGIONS } from "../../constants";
 import type { RiskEntry } from "../../types/api";
 
 const RISK_PILLS = [
-  { id: "high",   label: "Cao",    activeClass: "bg-[var(--color-risk-high)]/15 border-[var(--color-risk-high)]/50 text-[var(--color-risk-high)]" },
-  { id: "medium", label: "TB",     activeClass: "bg-amber-500/15 border-amber-500/50 text-amber-300" },
-  { id: "low",    label: "Thấp",   activeClass: "bg-emerald-500/15 border-emerald-500/50 text-emerald-300" },
+  { id: "high",   label: "Cao",    activeClass: "bg-[#7f1d1d] border-[#f87171] text-white" },
+  { id: "medium", label: "TB",     activeClass: "bg-[#854d0e] border-[#fbbf24] text-white" },
+  { id: "low",    label: "Thấp",   activeClass: "bg-[#166534] border-[#4ade80] text-white" },
 ] as const;
 
 interface Props {
@@ -49,7 +49,7 @@ export default function RegionFilter({
               className={`text-[10px] px-2 py-0.5 rounded border font-semibold transition-colors ${
                 active
                   ? pill.activeClass
-                  : "bg-[var(--color-surface-2)] border-[var(--color-border)] text-[var(--color-text-3)] hover:text-[var(--color-text-1)]"
+                  : "bg-[var(--color-panel-inset)] border-[var(--color-panel-border)] text-slate-100 hover:text-white hover:border-white"
               }`}
               title={active ? `Bỏ lọc mức ${pill.label}` : `Lọc mức ${pill.label}`}
             >
@@ -60,7 +60,7 @@ export default function RegionFilter({
         {riskLevels.length > 0 && (
           <button
             onClick={() => riskLevels.forEach((l) => onToggleRiskLevel(l))}
-            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-3)] hover:text-[var(--color-text-1)] transition-colors"
+            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-panel-border)] bg-[var(--color-panel-inset)] text-slate-100 hover:text-white hover:border-white transition-colors"
             title="Xóa tất cả bộ lọc mức độ"
           >
             ✕
@@ -75,15 +75,15 @@ export default function RegionFilter({
             onClick={() => onToggle(r.id)}
             className={`flex items-center gap-2 px-1 py-1.5 cursor-pointer rounded text-xs select-none ${
               on
-                ? "text-[var(--color-text-1)]"
-                : "text-[var(--color-text-2)] hover:text-[var(--color-text-1)] hover:bg-[var(--color-surface-3)]"
+                ? "bg-[#245b8f] text-white font-semibold"
+                : "text-slate-100 hover:text-white hover:bg-[var(--color-panel-raised)]"
             }`}
           >
             <div
               className={`w-3.5 h-3.5 border-[1.5px] rounded-[3px] grid place-items-center shrink-0 transition-colors ${
                 on
-                  ? "bg-[#3b82f6] border-[#3b82f6]"
-                  : "bg-[var(--color-surface-2)] border-[var(--color-border)]"
+                  ? "bg-[#2563eb] border-[#93c5fd]"
+                  : "bg-[var(--color-panel-inset)] border-[var(--color-panel-border)]"
               }`}
             >
               {on && (
@@ -94,7 +94,7 @@ export default function RegionFilter({
             </div>
             <span>{r.label}</span>
             <span
-              className="ml-auto text-[11px] tabular-nums text-[var(--color-text-2)]"
+              className={`ml-auto text-[11px] tabular-nums ${on ? "text-white font-bold" : "text-slate-100"}`}
               title={`${counts[r.id] ?? 0} quốc gia trong vùng ${r.label}`}
             >
               {counts[r.id] ?? 0}
