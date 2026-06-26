@@ -1,9 +1,0 @@
-{
-  "macro_f1": 0.4884734710287478,
-  "auc_ovr": 0.727710347235173,
-  "high_recall_last_fold": 0.17,
-  "cv_folds": 3,
-  "cv_type": "walk-forward",
-  "sample_weight": "balanced",
-  "note": "High recall thap do dataset nho (37 nuoc, 3 folds) \u2014 limitation"
-}

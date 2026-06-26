@@ -1,8 +1,0 @@
-{
-  "macro_f1": 0.5429504292120809,
-  "auc_ovr": 0.7359726985385641,
-  "high_recall_last_fold": 0.81,
-  "cv_folds": 6,
-  "cv_type": "walk-forward",
-  "sample_weight": "balanced"
-}

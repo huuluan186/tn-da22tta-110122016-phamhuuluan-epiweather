@@ -278,3 +278,13 @@ docs/
 .claude/
 gemini-dashboard-EpiWatch.html
 lenh_chay_python.txt
+
+# ml_models: chỉ giữ model production backend load (base v2/v4 + multi-horizon h1-h4_v1)
+ml_models/lgbm_flu_regressor_v1*
+ml_models/rf_dengue_regressor_v1*
+ml_models/xgb_flu_classifier_v1*
+ml_models/xgb_flu_classifier_v2*
+ml_models/xgb_flu_classifier_v3*
+ml_models/xgb_dengue_classifier_v1*
+ml_models/xgb_dengue_classifier_v2*
+ml_models/xgb_dengue_classifier_v3*
