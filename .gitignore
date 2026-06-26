@@ -297,3 +297,13 @@ notebooks/KLTN_EpiWeather_ML_v3.ipynb
 notebooks/KLTN_EpiWeather_ML_v4.ipynb
 notebooks/KLTN_EpiWeather_ML_v5.ipynb
 notebooks/KLTN_EpiWeather_ML_v6.ipynb
+
+# scripts: bỏ file vá/tạm/scan trung gian (giữ _pipeline_logger.py — module thật được import)
+scripts/_patch_*
+scripts/_tmp_*
+scripts/_revert_*
+scripts/_add_cell_*
+scripts/_fix_cell_*
+scripts/_scan_*
+scripts/update_notebook_cells.py
+scripts/__pycache__/
