@@ -3,12 +3,21 @@
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from ....core.config import settings
+from ....crud import diseases as disease_crud
+from ....crud import feature_configs as feature_config_crud
+from ....db.session import get_db
+from ....services import ml_engine
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
-ML_MODELS_DIR = PROJECT_ROOT / "ml_models"
+# MODELS_DIR từ config (env-aware): host = <repo>/ml_models, container = /app/ml_models.
+# KHÔNG tự suy từ parents[N] — số cấp khác nhau giữa host (backend/ là subdir) và
+# Docker (context ./backend → /app), sẽ trỏ sai đường dẫn trong container.
+ML_MODELS_DIR = Path(settings.MODELS_DIR)
 
 DISEASE_MODEL_PREFIX = {
     "flu": "lgbm_flu_regressor",
@@ -68,12 +77,9 @@ def model_performance(disease: str):
 
 
 @router.get("/feature-importance/{disease}")
-def feature_importance(disease: str, horizon: int = 1):
+def feature_importance(disease: str, horizon: int = 1, db: Session = Depends(get_db)):
     """
-    Trả danh sách features dùng cho model + best hyperparameters.
-
-    Không có feature_importance thật (chưa lưu .feature_importances_),
-    nên trả thứ tự features từ json — FE có thể hiển thị theo thứ tự ưu tiên domain.
+    Trả feature importance toàn cục của model multi-horizon production.
     """
     if disease not in DISEASE_MODEL_PREFIX:
         raise HTTPException(status_code=400, detail="disease phải là 'flu' hoặc 'dengue'")
@@ -86,10 +92,37 @@ def feature_importance(disease: str, horizon: int = 1):
     if data is None:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy features cho '{disease}' h={horizon}")
 
+    try:
+        importance = ml_engine.get_horizon_feature_importance(disease, horizon)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    feature_names = data.get("features", [])
+    disease_row = disease_crud.get_by_code(db, disease)
+    metadata_rows = (
+        feature_config_crud.metadata_by_names(db, disease_row.id, feature_names)
+        if disease_row
+        else {}
+    )
+
+    def feature_metadata(feature_name: str) -> dict:
+        row = metadata_rows.get(feature_name)
+        return {
+            "feature": feature_name,
+            "display_name_vi": row.display_name_vi if row else None,
+            "description_vi": row.description_vi if row else None,
+            "source_type": row.source_type if row else None,
+        }
+
     return {
         "disease": disease,
         "horizon": horizon,
-        "features": data.get("features", []),
+        "features": feature_names,
+        "feature_metadata": [feature_metadata(name) for name in feature_names],
+        "importance": [
+            {**item, **feature_metadata(item["feature"])}
+            for item in importance
+        ],
         "target": data.get("target"),
         "model_type": data.get("model_type"),
         "training_date": data.get("date"),

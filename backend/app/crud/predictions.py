@@ -1,10 +1,9 @@
 import math
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import DiseaseCase, Prediction
-
 
 def get_one(
     db: Session,
@@ -24,7 +23,6 @@ def get_one(
         )
         .first()
     )
-
 
 def get_latest_week(
     db: Session,
@@ -53,6 +51,42 @@ def get_latest_week(
     return (row[0], row[1]) if row else None
 
 
+def list_available_periods(
+    db: Session,
+    disease_id: int,
+    max_year: int | None = None,
+    max_week: int | None = None,
+) -> list[dict[str, int]]:
+    query = db.query(
+        Prediction.iso_year.label("iso_year"),
+        func.min(Prediction.iso_week).label("min_week"),
+        func.max(Prediction.iso_week).label("max_week"),
+    ).filter(
+        Prediction.disease_id == disease_id,
+        Prediction.horizon_weeks == 1,
+    )
+    if max_year is not None and max_week is not None:
+        query = query.filter(
+            or_(
+                Prediction.iso_year < max_year,
+                and_(
+                    Prediction.iso_year == max_year,
+                    Prediction.iso_week <= max_week,
+                ),
+            )
+        )
+    elif max_year is not None:
+        query = query.filter(Prediction.iso_year <= max_year)
+
+    rows = query.group_by(Prediction.iso_year).order_by(Prediction.iso_year).all()
+    return [
+        {
+            "iso_year": int(row.iso_year),
+            "min_week": int(row.min_week),
+            "max_week": int(row.max_week),
+        }
+        for row in rows
+    ]
 def list_for_map(
     db: Session,
     disease_id: int,
@@ -71,15 +105,15 @@ def list_for_map(
         .all()
     )
 
-
 def list_history(
     db: Session,
     disease_id: int,
     iso3: str,
     start_year: int,
     end_year: int,
+    limit: int | None = None,
 ) -> list[Prediction]:
-    return (
+    query = (
         db.query(Prediction)
         .filter(
             Prediction.disease_id == disease_id,
@@ -87,10 +121,11 @@ def list_history(
             Prediction.iso_year.between(start_year, end_year),
             Prediction.horizon_weeks == 1,
         )
-        .order_by(Prediction.iso_year, Prediction.iso_week)
-        .all()
+        .order_by(Prediction.iso_year.desc(), Prediction.iso_week.desc())
     )
-
+    if limit is not None:
+        query = query.limit(limit)
+    return list(reversed(query.all()))
 
 def list_actuals(
     db: Session,

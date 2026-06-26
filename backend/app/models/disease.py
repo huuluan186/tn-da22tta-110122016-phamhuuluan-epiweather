@@ -38,19 +38,18 @@ class Disease(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     code: Mapped[str] = mapped_column(String(20), unique=True)
     display_name: Mapped[str] = mapped_column(String(100))
+    display_name_vi: Mapped[str | None] = mapped_column(String(100))
     target_variable: Mapped[str] = mapped_column(String(50))
     target_transform: Mapped[str] = mapped_column(String(20), default="log1p")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     description: Mapped[str | None] = mapped_column(Text)
+    description_vi: Mapped[str | None] = mapped_column(Text)
 
     predictions: Mapped[list["Prediction"]] = relationship(  # noqa: F821
         "Prediction", back_populates="disease"
     )
     disease_cases: Mapped[list["DiseaseCase"]] = relationship(  # noqa: F821
         "DiseaseCase", back_populates="disease"
-    )
-    risk_thresholds: Mapped[list["RiskThreshold"]] = relationship(  # noqa: F821
-        "RiskThreshold", back_populates="disease"
     )
     model_versions: Mapped[list["ModelVersion"]] = relationship(  # noqa: F821
         "ModelVersion", back_populates="disease"

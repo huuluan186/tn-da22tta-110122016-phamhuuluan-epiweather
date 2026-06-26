@@ -35,7 +35,7 @@ def available_countries(
 def get_forecast(
     disease: str,
     iso3: str,
-    as_of_year: int = Query(..., ge=2010, le=2030, description="Tuần 'hiện tại' làm input cho model"),
+    as_of_year: int = Query(..., ge=2010, description="Tuần 'hiện tại' làm input cho model"),
     as_of_week: int = Query(..., ge=1, le=53),
     db: Session = Depends(get_db),
 ):

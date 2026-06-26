@@ -3,11 +3,10 @@ from sqlalchemy.orm import Session
 
 from ..crud import diseases as disease_crud
 from ..crud import predictions as prediction_crud
-from ..schemas.prediction import RiskMapItem, RiskMapResponse
+from ..schemas.prediction import RiskMapItem, RiskMapPeriod, RiskMapPeriodsResponse, RiskMapResponse
 from . import feature_lookup
 
 VALID_DISEASES = {"flu", "dengue"}
-
 
 def _resolve(db: Session, disease_code: str):
     if disease_code not in VALID_DISEASES:
@@ -20,6 +19,35 @@ def _resolve(db: Session, disease_code: str):
         raise HTTPException(status_code=404, detail="Disease không tìm thấy trong database")
     return disease
 
+
+
+def get_risk_map_periods(db: Session, disease_code: str) -> RiskMapPeriodsResponse:
+    disease = _resolve(db, disease_code)
+    latest_observed = feature_lookup.get_last_observed_week(db, disease.id)
+    max_year, max_week = latest_observed if latest_observed else (None, None)
+    latest = prediction_crud.get_latest_week(
+        db,
+        disease.id,
+        max_year=max_year,
+        max_week=max_week,
+    )
+    if latest is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Chưa có prediction nào trong DB cho disease '{disease_code}'.",
+        )
+    periods = prediction_crud.list_available_periods(
+        db,
+        disease.id,
+        max_year=latest[0],
+        max_week=latest[1],
+    )
+    return RiskMapPeriodsResponse(
+        disease=disease_code,
+        latest_year=latest[0],
+        latest_week=latest[1],
+        periods=[RiskMapPeriod(**period) for period in periods],
+    )
 
 def get_risk_map(
     db: Session,
@@ -34,7 +62,7 @@ def get_risk_map(
             status_code=404,
             detail=(
                 f"{disease_code} chỉ có dữ liệu hợp lệ đến "
-                f"{latest_year}-W{latest_week:02d} trong dataset hiện có."
+                f"Năm {latest_year}, Tuần {latest_week:02d} trong dataset hiện có."
             ),
         )
     rows = prediction_crud.list_for_map(db, disease.id, year, week)
@@ -60,7 +88,6 @@ def get_risk_map(
         count=len(items),
         items=items,
     )
-
 
 def get_latest_risk_map(db: Session, disease_code: str) -> RiskMapResponse:
     """Risk map cho tuần mới nhất có data — dùng cho map mặc định khi load."""

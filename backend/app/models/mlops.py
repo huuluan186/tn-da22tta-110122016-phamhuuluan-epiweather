@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, JSON, SmallInteger, String
+from sqlalchemy import BigInteger, Computed, DateTime, Float, ForeignKey, Integer, JSON, SmallInteger, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .geography import Base
@@ -15,6 +15,11 @@ class PipelineRun(Base):
     status: Mapped[str] = mapped_column(String(20))
     iso_year: Mapped[int | None] = mapped_column(SmallInteger)
     iso_week: Mapped[int | None] = mapped_column(SmallInteger)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    duration_sec: Mapped[float | None] = mapped_column(
+        Float, Computed("EXTRACT(EPOCH FROM (completed_at - started_at))", persisted=True)
+    )
     rows_processed: Mapped[int | None] = mapped_column(Integer)
     rows_inserted: Mapped[int | None] = mapped_column(Integer)
     rows_updated: Mapped[int | None] = mapped_column(Integer)

@@ -53,25 +53,6 @@ class ModelEvaluation(Base):
     )
 
 
-class RiskThreshold(Base):
-    __tablename__ = "risk_thresholds"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    disease_id: Mapped[int] = mapped_column(ForeignKey("diseases.id"))
-    iso3: Mapped[str] = mapped_column(String(10))
-    q33: Mapped[float]
-    q67: Mapped[float]
-    n_nonzero_weeks: Mapped[int | None] = mapped_column(Integer)
-    is_global_fallback: Mapped[bool] = mapped_column(Boolean, default=False)
-    model_version_id: Mapped[int | None] = mapped_column(
-        ForeignKey("model_versions.id")
-    )
-
-    disease: Mapped["Disease"] = relationship(  # noqa: F821
-        "Disease", back_populates="risk_thresholds"
-    )
-
-
 class Prediction(Base):
     # Partitioned parent table — PostgreSQL routes to correct partition.
     __tablename__ = "predictions"
@@ -87,8 +68,6 @@ class Prediction(Base):
     predicted_cases: Mapped[float | None]
     risk_level: Mapped[str | None] = mapped_column(String(10))
     risk_probability: Mapped[float | None]  # P(High) từ classifier — FE × 100 = severity score
-    risk_q33: Mapped[float | None]
-    risk_q67: Mapped[float | None]
     model_version_id: Mapped[int | None] = mapped_column(
         ForeignKey("model_versions.id")
     )

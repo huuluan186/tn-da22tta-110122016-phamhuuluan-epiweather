@@ -1,3 +1,6 @@
+import math
+import statistics
+from collections import defaultdict
 from datetime import date, timedelta
 
 from fastapi import HTTPException
@@ -5,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..crud import diseases as disease_crud
 from ..crud import predictions as prediction_crud
+from ..models import DiseaseCase
 from ..schemas.prediction import (
     DataCoverage,
     ForecastPoint,
@@ -16,6 +20,61 @@ from ..schemas.prediction import (
 from . import feature_lookup, ml_engine
 
 VALID_DISEASES = {"flu", "dengue"}
+BASELINE_YEARS = {
+    "flu": (2010, 2018),
+    "dengue": (2015, 2018),
+}
+
+
+def _bortman_baselines(
+    db: Session,
+    disease_id: int,
+    disease_code: str,
+    iso3: str,
+    iso_weeks: set[int],
+) -> dict[int, tuple[float, float]]:
+    start_year, end_year = BASELINE_YEARS[disease_code]
+    rows = (
+        db.query(DiseaseCase)
+        .filter(
+            DiseaseCase.disease_id == disease_id,
+            DiseaseCase.iso3 == iso3,
+            DiseaseCase.iso_year.between(start_year, end_year),
+            DiseaseCase.iso_week.in_(iso_weeks),
+        )
+        .all()
+    )
+
+    cases_by_week: dict[int, list[float]] = defaultdict(list)
+    for row in rows:
+        value = row.raw_count
+        if value is None and row.transformed_value is not None:
+            value = math.expm1(row.transformed_value)
+        if value is not None:
+            cases_by_week[row.iso_week].append(float(value))
+
+    baselines: dict[int, tuple[float, float]] = {}
+    for week, values in cases_by_week.items():
+        mean = statistics.mean(values)
+        std = statistics.stdev(values) if len(values) > 1 else 0.0
+        baselines[week] = (mean, mean + 2 * std)
+    return baselines
+
+
+def _risk_from_bortman(
+    predicted_cases: float,
+    baseline: tuple[float, float] | None,
+) -> str | None:
+    if baseline is None:
+        return None
+    mean, upper = baseline
+    if mean == 0 and upper == 0:
+        return "Low" if predicted_cases == 0 else "High"
+    if predicted_cases < mean:
+        return "Low"
+    if predicted_cases < upper:
+        return "Medium"
+    return "High"
 
 
 def resolve_disease(db: Session, code: str):
@@ -45,7 +104,7 @@ def get_prediction(
             status_code=404,
             detail=(
                 f"{disease_code} chỉ có dữ liệu hợp lệ đến "
-                f"{latest_year}-W{latest_week:02d} trong dataset hiện có."
+                f"Năm {latest_year}, Tuần {latest_week:02d} trong dataset hiện có."
             ),
         )
     row = prediction_crud.get_one(db, disease.id, iso3.upper(), year, week)
@@ -86,7 +145,7 @@ def get_forecast(
             status_code=404,
             detail=(
                 f"{disease_code} chỉ có dữ liệu hợp lệ đến "
-                f"{latest_year}-W{latest_week:02d} trong dataset hiện có."
+                f"Năm {latest_year}, Tuần {latest_week:02d} trong dataset hiện có."
             ),
         )
 
@@ -96,23 +155,34 @@ def get_forecast(
     if features is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Không có feature snapshot cho {disease_code}/{iso3_upper} tại {as_of_year}W{as_of_week:02d}",
+            detail=(
+                f"Không có feature snapshot cho {disease_code}/{iso3_upper} "
+                f"tại Tuần {as_of_week:02d}, Năm {as_of_year}"
+            ),
         )
 
+    targets = [add_iso_weeks(as_of_year, as_of_week, h) for h in ml_engine.HORIZONS]
+    baselines = _bortman_baselines(
+        db,
+        disease.id,
+        disease_code,
+        iso3_upper,
+        {target_week for _, target_week in targets},
+    )
     points: list[ForecastPoint] = []
-    for h in ml_engine.HORIZONS:
+    for h, (target_year, target_week) in zip(ml_engine.HORIZONS, targets, strict=True):
         try:
             result = ml_engine.predict_horizon(disease_code, h, features)
         except ValueError as e:
             raise HTTPException(status_code=503, detail=str(e))
 
-        target_year, target_week = add_iso_weeks(as_of_year, as_of_week, h)
         points.append(ForecastPoint(
             horizon=h,
             target_iso_year=target_year,
             target_iso_week=target_week,
             predicted_log=result["predicted_log"],
             predicted_cases=result["predicted_cases"],
+            risk_level=_risk_from_bortman(result["predicted_cases"], baselines.get(target_week)),
             r2_cv=result.get("r2_cv"),
             rmse_cv=result.get("rmse_cv"),
             model_version=result["model_version"],
@@ -129,6 +199,7 @@ def get_forecast(
         as_of_iso_year=as_of_year,
         as_of_iso_week=as_of_week,
         points=points,
+        risk_method="bortman_1999_endemic_channel",
         data_coverage=coverage,
     )
 
@@ -139,11 +210,14 @@ def get_history(
     iso3: str,
     start_year: int,
     end_year: int,
+    limit: int | None = None,
 ) -> HistoryResponse:
     disease = resolve_disease(db, disease_code)
     iso3 = iso3.upper()
 
-    predictions = prediction_crud.list_history(db, disease.id, iso3, start_year, end_year)
+    predictions = prediction_crud.list_history(
+        db, disease.id, iso3, start_year, end_year, limit
+    )
     actuals = prediction_crud.list_actuals(db, disease.id, iso3, start_year, end_year)
 
     points = [

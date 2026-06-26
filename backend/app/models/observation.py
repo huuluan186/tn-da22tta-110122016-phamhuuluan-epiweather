@@ -65,6 +65,8 @@ class FeatureConfig(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     disease_id: Mapped[int] = mapped_column(ForeignKey("diseases.id"))
     feature_name: Mapped[str] = mapped_column(String(100))
+    display_name_vi: Mapped[str | None] = mapped_column(String(150))
+    description_vi: Mapped[str | None] = mapped_column(String(500))
     source_type: Mapped[str] = mapped_column(String(20))
     weather_variable: Mapped[str | None] = mapped_column(String(50))
     lag_weeks: Mapped[int] = mapped_column(SmallInteger, default=0)

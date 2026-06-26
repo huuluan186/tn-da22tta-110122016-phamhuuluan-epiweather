@@ -56,16 +56,16 @@ _RISK_LABELS = {0: "Low", 1: "Medium", 2: "High"}
 # ── Load ───────────────────────────────────────────────────────────────────────
 
 def _load_artifact(models_dir: Path, stem: str) -> dict | None:
+    """
+    Nạp metadata (features.json + metrics.json — vài KB) ngay; KHÔNG nạp pickle.
+
+    Model nặng (RF dengue ~40MB/file) được lazy-load qua _get_model() ở lần predict
+    đầu tiên, để startup không block server. art['model'] = None cho tới khi cần.
+    """
     pkl_path = models_dir / f"{stem}.pkl"
     if not pkl_path.exists():
         logger.warning(f"SKIP — không tìm thấy: {pkl_path}")
         return None
-
-    try:
-        model = joblib.load(pkl_path)
-    except Exception:
-        with open(pkl_path, "rb") as f:
-            model = pickle.load(f)
 
     features_path = models_dir / f"{stem}_features.json"
     with open(features_path) as f:
@@ -87,7 +87,8 @@ def _load_artifact(models_dir: Path, stem: str) -> dict | None:
     high_threshold = features_meta.get("high_threshold")
 
     return {
-        "model": model,
+        "model": None,            # lazy — nạp ở _get_model() khi predict lần đầu
+        "pkl_path": pkl_path,
         "features": features,
         "metrics": metrics,
         "label_of_index": label_of_index,
@@ -95,27 +96,43 @@ def _load_artifact(models_dir: Path, stem: str) -> dict | None:
     }
 
 
+def _get_model(art: dict):
+    """Lazy-load pickle lần đầu, cache vào art['model']. Idempotent."""
+    if art["model"] is None:
+        pkl_path = art["pkl_path"]
+        try:
+            art["model"] = joblib.load(pkl_path)
+        except Exception:
+            with open(pkl_path, "rb") as f:
+                art["model"] = pickle.load(f)
+        logger.info(f"lazy-loaded model {pkl_path.name}")
+    return art["model"]
+
+
 def load_models(models_dir: Path) -> None:
-    """Gọi 1 lần khi FastAPI khởi động (lifespan)."""
+    """
+    Gọi 1 lần khi FastAPI khởi động (lifespan). Chỉ nạp metadata để startup hoàn tất
+    ngay; pickle nặng được nạp on-demand ở request đầu tiên cần model đó.
+    """
     models_dir = Path(models_dir)
 
     for disease, stem in _REGRESSOR_FILES.items():
         art = _load_artifact(models_dir, stem)
         if art:
             _regressors[disease] = art
-            logger.info(f"regressor '{disease}' loaded — {len(art['features'])} features")
+            logger.info(f"regressor '{disease}' registered — {len(art['features'])} features (lazy)")
 
     for disease, stem in _CLASSIFIER_FILES.items():
         art = _load_artifact(models_dir, stem)
         if art:
             _classifiers[disease] = art
-            logger.info(f"classifier '{disease}' loaded — {len(art['features'])} features")
+            logger.info(f"classifier '{disease}' registered — {len(art['features'])} features (lazy)")
 
     for (disease, h), stem in _REGRESSOR_MH_FILES.items():
         art = _load_artifact(models_dir, stem)
         if art:
             _regressors_mh[(disease, h)] = art
-            logger.info(f"regressor_mh '{disease}' h={h} loaded — R²={art['metrics'].get('r2', 'n/a')}")
+            logger.info(f"regressor_mh '{disease}' h={h} registered — R²={art['metrics'].get('r2', 'n/a')} (lazy)")
 
 
 # ── Inference ──────────────────────────────────────────────────────────────────
@@ -129,7 +146,7 @@ def predict_regression(disease: str, feature_values: dict[str, float]) -> dict:
         raise ValueError(f"Regressor '{disease}' chưa được load")
     art = _regressors[disease]
     X = _build_input(feature_values, art["features"])
-    predicted_log = float(art["model"].predict(X)[0])
+    predicted_log = float(_get_model(art).predict(X)[0])
     predicted_cases = float(np.expm1(max(predicted_log, 0.0)))
     return {
         "predicted_log": round(predicted_log, 4),
@@ -144,7 +161,7 @@ def predict_horizon(disease: str, horizon: int, feature_values: dict[str, float]
         raise ValueError(f"Multi-horizon regressor '{disease}' h={horizon} chưa được load")
     art = _regressors_mh[key]
     X = _build_input(feature_values, art["features"])
-    predicted_log = float(art["model"].predict(X)[0])
+    predicted_log = float(_get_model(art).predict(X)[0])
     predicted_cases = float(np.expm1(max(predicted_log, 0.0)))
     metrics = art["metrics"]
     return {
@@ -162,7 +179,7 @@ def predict_classification(disease: str, feature_values: dict[str, float]) -> di
         raise ValueError(f"Classifier '{disease}' chưa được load")
     art = _classifiers[disease]
     X = _build_input(feature_values, art["features"])
-    proba = art["model"].predict_proba(X)[0]
+    proba = _get_model(art).predict_proba(X)[0]
 
     # Map index → label theo metadata (mặc định Low=0/Med=1/High=2 nếu thiếu).
     label_of_index = art.get("label_of_index") or _RISK_LABELS
@@ -198,6 +215,32 @@ def get_regressor_features(disease: str) -> list[str]:
 
 def get_classifier_features(disease: str) -> list[str]:
     return _classifiers[disease]["features"] if disease in _classifiers else []
+
+
+def get_horizon_feature_importance(disease: str, horizon: int) -> list[dict]:
+    key = (disease, horizon)
+    if key not in _regressors_mh:
+        raise ValueError(f"Multi-horizon regressor '{disease}' h={horizon} chưa được load")
+
+    art = _regressors_mh[key]
+    features = art["features"]
+    raw_importance = getattr(_get_model(art), "feature_importances_", None)
+
+    if raw_importance is None:
+        raise ValueError(f"Model '{disease}' h={horizon} không hỗ trợ feature importance")
+
+    total = float(np.sum(raw_importance))
+    return sorted(
+        [
+            {
+                "feature": feature,
+                "importance": float(value / total) if total > 0 else 0.0,
+            }
+            for feature, value in zip(features, raw_importance, strict=True)
+        ],
+        key=lambda item: item["importance"],
+        reverse=True,
+    )
 
 
 def loaded_diseases() -> dict:

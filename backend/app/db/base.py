@@ -19,7 +19,6 @@ from app.models import (  # noqa: F401
     ModelVersion,
     PipelineRun,
     Prediction,
-    RiskThreshold,
     WeatherObservation,
     WeatherVariable,
 )

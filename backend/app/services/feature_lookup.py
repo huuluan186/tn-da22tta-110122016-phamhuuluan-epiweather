@@ -257,7 +257,7 @@ def build_data_coverage(
         if is_dengue_nowcast:
             warning = (
                 f"Dự báo nowcast {as_of_year}. Model đã validate trên hold-out 2022 (R²=0.87) "
-                "và đối chiếu được với số ca thực OpenDengue đến W36/2023."
+                "và đối chiếu được với số ca thực OpenDengue đến Tuần 36/2023."
             )
         else:
             warning = (

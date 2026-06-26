@@ -5,8 +5,11 @@ class Disease(BaseModel):
     id: int
     code: str
     display_name: str
+    display_name_vi: str | None
     target_variable: str
     target_transform: str
+    description: str | None
+    description_vi: str | None
 
 
 class HoldoutMetrics(BaseModel):

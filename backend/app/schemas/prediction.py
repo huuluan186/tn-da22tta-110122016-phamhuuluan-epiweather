@@ -8,8 +8,7 @@ class PredictionPoint(BaseModel):
     predicted_value: float | None
     predicted_cases: float | None
     risk_level: str | None
-    risk_q33: float | None
-    risk_q67: float | None
+    risk_probability: float | None
     confidence_lo: float | None
     confidence_hi: float | None
 
@@ -33,6 +32,18 @@ class RiskMapResponse(BaseModel):
     items: list[RiskMapItem]
 
 
+
+class RiskMapPeriod(BaseModel):
+    iso_year: int
+    min_week: int
+    max_week: int
+
+
+class RiskMapPeriodsResponse(BaseModel):
+    disease: str
+    latest_year: int
+    latest_week: int
+    periods: list[RiskMapPeriod]
 class HistoryPoint(BaseModel):
     iso_year: int
     iso_week: int
@@ -55,6 +66,7 @@ class ForecastPoint(BaseModel):
     target_iso_week: int
     predicted_log: float
     predicted_cases: float
+    risk_level: str | None
     r2_cv: float | None           # CV R² của model horizon này (confidence indicator)
     rmse_cv: float | None
     model_version: str            # ví dụ "flu_h2_v1"
@@ -75,6 +87,7 @@ class ForecastResponse(BaseModel):
     as_of_iso_year: int           # tuần "hiện tại" làm input cho model
     as_of_iso_week: int
     points: list[ForecastPoint]   # 4 điểm h=1..4
+    risk_method: str
     data_coverage: DataCoverage | None = None
 
 
