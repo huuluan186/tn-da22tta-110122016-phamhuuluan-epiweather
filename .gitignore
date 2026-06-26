@@ -288,3 +288,12 @@ ml_models/xgb_flu_classifier_v3*
 ml_models/xgb_dengue_classifier_v1*
 ml_models/xgb_dengue_classifier_v2*
 ml_models/xgb_dengue_classifier_v3*
+
+# notebooks: chỉ giữ v7 + final (bản gộp), gỡ các version trung gian
+notebooks/KLTN_EpiWeather_ML.ipynb
+notebooks/KLTN_EpiWeather_ML_Colab.ipynb
+notebooks/KLTN_EpiWeather_ML_Colab_v2.ipynb
+notebooks/KLTN_EpiWeather_ML_v3.ipynb
+notebooks/KLTN_EpiWeather_ML_v4.ipynb
+notebooks/KLTN_EpiWeather_ML_v5.ipynb
+notebooks/KLTN_EpiWeather_ML_v6.ipynb
