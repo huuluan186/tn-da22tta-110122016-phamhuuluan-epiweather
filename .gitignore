@@ -272,3 +272,6 @@ scripts/notion_config.py
 Thumbs.db
 *.swp
 *.swo
+
+# --- Dọn repo: gỡ tài liệu, giữ file local (clone-and-run chỉ cần code/data/notebook) ---
+docs/
