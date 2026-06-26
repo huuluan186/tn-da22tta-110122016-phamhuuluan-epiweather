@@ -36,11 +36,13 @@ CREATE TABLE IF NOT EXISTS diseases (
     id                SERIAL           PRIMARY KEY,
     code              VARCHAR(20)      NOT NULL UNIQUE,
     display_name      VARCHAR(100)     NOT NULL,
+    display_name_vi   VARCHAR(100),
     target_variable   VARCHAR(50)      NOT NULL,
     target_transform  VARCHAR(20)      DEFAULT 'log1p'
                       CHECK (target_transform IN ('log1p', 'none', 'sqrt')),
     is_active         BOOLEAN          DEFAULT TRUE,
     description       TEXT,
+    description_vi    TEXT,
     created_at        TIMESTAMPTZ      DEFAULT NOW()
 );
 
@@ -145,6 +147,8 @@ CREATE TABLE IF NOT EXISTS feature_configs (
     id                SERIAL           PRIMARY KEY,
     disease_id        INTEGER          NOT NULL REFERENCES diseases(id),
     feature_name      VARCHAR(100)     NOT NULL,
+    display_name_vi   VARCHAR(150),
+    description_vi    VARCHAR(500),
     source_type       VARCHAR(20)      NOT NULL
                       CHECK (source_type IN ('weather', 'ar_lag', 'geographic', 'socioeconomic', 'calendar')),
     weather_variable  VARCHAR(50),
@@ -195,19 +199,6 @@ CREATE TABLE IF NOT EXISTS model_evaluations (
     evaluated_at      TIMESTAMPTZ      DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS risk_thresholds (
-    id                SERIAL           PRIMARY KEY,
-    disease_id        INTEGER          NOT NULL REFERENCES diseases(id),
-    iso3              VARCHAR(10)      NOT NULL,
-    q33               DOUBLE PRECISION NOT NULL,
-    q67               DOUBLE PRECISION NOT NULL,
-    n_nonzero_weeks   INTEGER,
-    is_global_fallback BOOLEAN         DEFAULT FALSE,
-    model_version_id  INTEGER          REFERENCES model_versions(id),
-    updated_at        TIMESTAMPTZ      DEFAULT NOW(),
-    UNIQUE (disease_id, iso3)
-);
-
 CREATE TABLE IF NOT EXISTS predictions (
     id                BIGSERIAL,
     disease_id        INTEGER          NOT NULL REFERENCES diseases(id),
@@ -219,8 +210,6 @@ CREATE TABLE IF NOT EXISTS predictions (
     predicted_cases   DOUBLE PRECISION,
     risk_level        VARCHAR(10)      CHECK (risk_level IN ('Low', 'Medium', 'High')),
     risk_probability  DOUBLE PRECISION,
-    risk_q33          DOUBLE PRECISION,
-    risk_q67          DOUBLE PRECISION,
     model_version_id  INTEGER          REFERENCES model_versions(id),
     features_snapshot JSONB,
     confidence_lo     DOUBLE PRECISION,
@@ -329,10 +318,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_latest
 -- SEED DATA — Catalog
 -- ============================================================
 
-INSERT INTO diseases (code, display_name, target_variable, target_transform, description)
+INSERT INTO diseases (code, display_name, display_name_vi, target_variable, target_transform, description, description_vi)
 VALUES
-    ('flu',    'Influenza',     'inf_cases',     'log1p', 'Seasonal influenza A+B — FluNet source'),
-    ('dengue', 'Dengue fever',  'dengue_total',  'log1p', 'Dengue hemorrhagic fever — WHO PAHO source')
+    ('flu',    'Influenza',    'Cúm mùa',               'inf_cases',     'log1p', 'Seasonal influenza A+B — FluNet source', 'Bệnh hô hấp theo mùa, lây qua giọt bắn và tiếp xúc gần.'),
+    ('dengue', 'Dengue fever', 'Sốt xuất huyết Dengue', 'dengue_total',  'log1p', 'Dengue hemorrhagic fever — WHO PAHO source', 'Bệnh do muỗi truyền, bùng phát mạnh theo mùa mưa và khí hậu nóng ẩm.')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO data_sources (code, source_type, update_frequency, spatial_coverage, description)

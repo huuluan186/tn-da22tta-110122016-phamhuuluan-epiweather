@@ -1,14 +1,14 @@
 """
 load_db_v2.py — Seed DB kltn_epiweather từ artifacts production (LightGBM + RF + XGBClassifier).
 
-Khác load_db.py cũ:
+Loader chính thức (thay load_db.py cũ đã xoá):
   - Paths: data/processed/, ml_models/ (đổi từ dataset/, models/)
   - Per-model metadata: *_features.json + *_metrics.json (thay vì 1 file tổng)
   - 4 model: lgbm_flu_regressor_v2, rf_dengue_regressor_v2,
              xgb_flu_classifier_v4, xgb_dengue_classifier_v4 (classifier v4 = fix encoding LabelEncoder)
   - Tránh model.get_xgb_params() — gọi __dict__ thông qua to_dict generic
-  - Bỏ feature_configs, per-country risk_thresholds (defer)
-  - Risk level lấy từ classifier (Low/Medium/High) trực tiếp
+  - Risk level lấy TRỰC TIẾP từ XGBClassifier (nhãn endemic channel Bortman 1999),
+    KHÔNG dùng ngưỡng phân vị q33/q67 (đã bỏ hẳn để tránh hai method mâu thuẫn)
 
 Tiền điều kiện:
   1. psql -U postgres -d kltn_epiweather -f scripts/db_init.sql
@@ -270,11 +270,6 @@ def load_predictions(cur, mv_ids):
         # Robust với numeric labels từ XGBClassifier
         risk_labels = [cls_classes[int(i)] if isinstance(i, (int, np.integer)) else str(i) for i in y_pred_cls_idx]
 
-        # Global thresholds từ predicted_log distribution (informational)
-        nz = y_pred_log[y_pred_log > 0]
-        q33 = float(np.quantile(nz, 0.33)) if len(nz) > 50 else 0.0
-        q67 = float(np.quantile(nz, 0.67)) if len(nz) > 50 else 0.0
-
         rows = []
         for i, r in enumerate(df.itertuples(index=False)):
             pred_log = float(y_pred_log[i])
@@ -285,7 +280,6 @@ def load_predictions(cur, mv_ids):
                     int(r.iso_year), int(r.iso_week), 1,
                     pred_log, pred_cases,
                     str(risk_labels[i]),
-                    q33, q67,
                     mv_id_reg,
                 )
             )
@@ -295,7 +289,7 @@ def load_predictions(cur, mv_ids):
             """
             INSERT INTO predictions
                 (disease_id, iso3, iso_year, iso_week, horizon_weeks,
-                 predicted_value, predicted_cases, risk_level, risk_q33, risk_q67,
+                 predicted_value, predicted_cases, risk_level,
                  model_version_id)
             VALUES %s
             ON CONFLICT (disease_id, iso3, iso_year, iso_week, horizon_weeks, model_version_id) DO NOTHING
@@ -303,7 +297,7 @@ def load_predictions(cur, mv_ids):
             rows,
             page_size=2000,
         )
-        print(f"  → {disease}: {len(rows):,} predictions inserted (q33={q33:.3f}, q67={q67:.3f})")
+        print(f"  → {disease}: {len(rows):,} predictions inserted")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

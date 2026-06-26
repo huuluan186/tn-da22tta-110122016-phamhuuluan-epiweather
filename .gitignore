@@ -307,3 +307,11 @@ scripts/_fix_cell_*
 scripts/_scan_*
 scripts/update_notebook_cells.py
 scripts/__pycache__/
+
+# Artifacts tạm, backup local
+backups/
+notebooks/*.bak
+notebooks/v*_cells_detail.txt
+notebooks/v*_kdtree_scan.txt
+notebooks/v*_map_scan.txt
+threshold_sweep.png

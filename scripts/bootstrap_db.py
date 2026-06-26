@@ -53,7 +53,11 @@ def main() -> None:
 
     run_script("seed_countries.py")
     run_script("load_db_v2.py")
+    print("[bootstrap] applying disease localization migration", flush=True)
+    execute_sql(PROJECT_ROOT / "scripts" / "db_migrate_disease_localization.sql")
     run_script("load_features.py")
+    print("[bootstrap] applying feature metadata migration", flush=True)
+    execute_sql(PROJECT_ROOT / "scripts" / "db_migrate_feature_metadata.sql")
     print("[bootstrap] done", flush=True)
 
 
