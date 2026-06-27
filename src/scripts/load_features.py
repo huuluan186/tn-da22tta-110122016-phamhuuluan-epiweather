@@ -45,10 +45,12 @@ FEATURE_FILES = {
     "dengue": PROCESSED / "features_dengue_v1.csv",
 }
 
-# Lấy feature columns từ regressor v1 metadata (single source of truth)
+# Lấy feature columns từ regressor h1 metadata (model production backend load
+# để forecast). Set h1 (flu 16 / dengue 15 cột) khớp đúng cột trong CSV training.
+# Không dùng base v2 vì v2 thêm velocity/accel — hai cột này CSV không có.
 FEATURE_META = {
-    "flu":    MODELS_DIR / "lgbm_flu_regressor_v1_features.json",
-    "dengue": MODELS_DIR / "rf_dengue_regressor_v1_features.json",
+    "flu":    MODELS_DIR / "lgbm_flu_regressor_h1_v1_features.json",
+    "dengue": MODELS_DIR / "rf_dengue_regressor_h1_v1_features.json",
 }
 
 
