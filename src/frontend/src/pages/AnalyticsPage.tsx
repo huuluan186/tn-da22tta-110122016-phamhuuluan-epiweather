@@ -3,12 +3,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import FeatureTooltip from "../components/common/FeatureTooltip";
 import Icon from "../components/common/Icon";
 import { RISK_LEVELS } from "../constants";
-import { useFeatureImportance, useModelPerformance, type FeatureImportanceItem, type FeatureMetadata } from "../hooks/useAnalytics";
+import { useFeatureImportance, useModelPerformance, useTrainingCoverage, type FeatureImportanceItem, type FeatureMetadata, type TrainingCoverage } from "../hooks/useAnalytics";
 import { useDiseases } from "../hooks/useDiseases";
 import { useRiskMap, useRiskMapPeriods } from "../hooks/useRiskMap";
 import { useUIStore } from "../store/uiStore";
 import type { RiskEntry, RiskMapPeriod } from "../types/api";
-import type { RiskLevel } from "../types/domain";
+import type { DiseaseId, RiskLevel } from "../types/domain";
 
 function Card({
   title,
@@ -546,11 +546,48 @@ function CategoryFilter({
   );
 }
 
+function CorrelationBar({ r }: { r: number | null | undefined }) {
+  if (r == null) {
+    return <span className="text-[11px] text-[var(--color-text-3)]">—</span>;
+  }
+  const pct = Math.min(Math.abs(r), 1) * 50;
+  const color = r >= 0 ? "#22c55e" : "#ef4444";
+  return (
+    <div className="flex items-center gap-1.5 w-[112px] shrink-0">
+      <div className="relative h-2 flex-1 rounded-sm bg-[var(--color-surface-3)]">
+        <span className="absolute inset-y-0 left-1/2 w-px bg-[var(--color-border)]" />
+        <span
+          className="absolute inset-y-0 rounded-sm"
+          style={
+            r >= 0
+              ? { left: "50%", width: `${pct}%`, backgroundColor: color }
+              : { right: "50%", width: `${pct}%`, backgroundColor: color }
+          }
+        />
+      </div>
+      <span
+        className="w-[40px] text-right tabular-nums text-[11px] font-semibold"
+        style={{ color }}
+      >
+        {r >= 0 ? "+" : ""}
+        {r.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
 function FeatureRankTable({ rows }: { rows: FeatureImportanceRow[] }) {
   const top = useMemo(() => rows.filter((row) => row.importance > 0).slice(0, 10), [rows]);
 
   return (
     <div className="flex flex-col gap-2.5">
+      <div className="flex items-center gap-2.5 text-[10px] uppercase tracking-wide text-[var(--color-text-3)]">
+        <span className="w-5 shrink-0 text-right">#</span>
+        <span className="w-3 shrink-0" />
+        <span className="flex-1">Biến</span>
+        <span className="shrink-0 w-[44px] text-right">Ảnh hưởng</span>
+        <span className="shrink-0 w-[112px] text-right">Tương quan</span>
+      </div>
       {top.map((row, idx) => {
         const color = sliceColor(idx);
         return (
@@ -560,9 +597,10 @@ function FeatureRankTable({ rows }: { rows: FeatureImportanceRow[] }) {
             </span>
             <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: color }} />
             <FeatureTooltip metadata={row} className="flex-1" />
-            <span className="shrink-0 tabular-nums font-semibold text-[var(--color-text-1)]">
+            <span className="shrink-0 w-[44px] text-right tabular-nums font-semibold text-[var(--color-text-1)]">
               {(row.importance * 100).toFixed(1)}%
             </span>
+            <CorrelationBar r={row.pearson_r} />
           </div>
         );
       })}
@@ -600,6 +638,151 @@ function FeatureImportancePanel({ rows }: { rows: FeatureImportanceRow[] }) {
       ) : (
         <ErrorBlock height={200} message="Nhóm này chưa có biến nào." />
       )}
+      <div className="text-[11px] leading-relaxed text-[var(--color-text-3)]">
+        Cột "Ảnh hưởng" là mức quan trọng do model học (gain). Cột "Tương quan" là hệ số
+        Pearson giữa biến và log1p số ca, tính trên toàn bộ training set 2010-2019 (gộp mọi
+        quốc gia): +1 đồng biến mạnh, -1 nghịch biến mạnh, gần 0 không tuyến tính. Hai cột bổ
+        sung nhau: biến vừa được model dùng nhiều vừa có tương quan rõ thì độ tin cậy cao hơn.
+      </div>
+    </div>
+  );
+}
+
+function CoverageYearChart({ coverage, color }: { coverage: TrainingCoverage; color: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const ch = echarts.init(ref.current);
+    const years = coverage.per_year.map((p) => String(p.year));
+    ch.setOption({
+      backgroundColor: "transparent",
+      grid: { top: 24, right: 48, bottom: 28, left: 56 },
+      legend: {
+        data: ["Số quan sát", "Số quốc gia"],
+        textStyle: { color: "#cbd5e1", fontSize: 10 },
+        top: 0,
+        right: 0,
+      },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "#1a1f2e",
+        borderColor: "#334155",
+        textStyle: { color: "#f1f5f9", fontSize: 11 },
+      },
+      xAxis: {
+        type: "category",
+        data: years,
+        axisLine: { lineStyle: { color: "#64748b" } },
+        axisLabel: { color: "#cbd5e1", fontSize: 10 },
+      },
+      yAxis: [
+        {
+          type: "value",
+          name: "Quan sát",
+          nameTextStyle: { color: "#cbd5e1", fontSize: 10 },
+          axisLine: { show: false },
+          axisLabel: { color: "#cbd5e1", fontSize: 10 },
+          splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
+        },
+        {
+          type: "value",
+          name: "Quốc gia",
+          nameTextStyle: { color: "#cbd5e1", fontSize: 10 },
+          axisLine: { show: false },
+          axisLabel: { color: "#cbd5e1", fontSize: 10 },
+          splitLine: { show: false },
+        },
+      ],
+      series: [
+        {
+          name: "Số quan sát",
+          type: "bar",
+          data: coverage.per_year.map((p) => p.observations),
+          itemStyle: { color, borderRadius: [4, 4, 0, 0] },
+          barWidth: 18,
+        },
+        {
+          name: "Số quốc gia",
+          type: "line",
+          yAxisIndex: 1,
+          data: coverage.per_year.map((p) => p.n_countries),
+          smooth: true,
+          symbol: "circle",
+          symbolSize: 7,
+          lineStyle: { color: "#e2e8f0", width: 2.5 },
+          itemStyle: { color: "#e2e8f0" },
+        },
+      ],
+    });
+    const onResize = () => ch.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      ch.dispose();
+    };
+  }, [coverage, color]);
+
+  return <div ref={ref} className="w-full h-[240px]" />;
+}
+
+function TrainingCoveragePanel({
+  coverage,
+  isLoading,
+  isError,
+  color,
+  disease,
+}: {
+  coverage: TrainingCoverage | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  color: string;
+  disease: DiseaseId;
+}) {
+  if (isLoading) return <LoadingBlock height={300} />;
+  if (isError || !coverage) return <ErrorBlock height={300} message="Chưa tải được độ phủ dữ liệu huấn luyện." />;
+
+  const kpis = [
+    { label: "Khoảng năm", value: `${coverage.year_start}–${coverage.year_end}`, sub: `${coverage.n_years} năm liên tục` },
+    { label: "Số quốc gia", value: coverage.n_countries.toLocaleString("vi-VN"), sub: "có báo cáo ca bệnh" },
+    { label: "Tổng quan sát", value: coverage.total_observations.toLocaleString("vi-VN"), sub: "bản ghi tuần × quốc gia" },
+    { label: "TB tuần/nước/năm", value: `${coverage.avg_weeks_per_country_year}/52`, sub: "mật độ báo cáo" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map((k) => (
+          <div
+            key={k.label}
+            className="bg-[var(--color-surface-2)] border border-[var(--color-border-soft)] rounded-md p-3"
+          >
+            <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
+              {k.label}
+            </div>
+            <div className="text-2xl font-semibold tabular-nums text-[var(--color-text-1)]">
+              {k.value}
+            </div>
+            <div className="text-[10px] text-[var(--color-text-3)] mt-0.5">{k.sub}</div>
+          </div>
+        ))}
+      </div>
+      <CoverageYearChart coverage={coverage} color={color} />
+      <div className="text-[11px] leading-relaxed text-[var(--color-text-3)]">
+        Cột là số quan sát mỗi năm, đường trắng là số quốc gia báo cáo trong năm đó. Đây là tập
+        sau bước feature engineering — đúng dữ liệu model học.{" "}
+        {disease === "flu" ? (
+          <>
+            Cúm dùng 2010-2019; loại 2020-2021 vì giãn cách và NPI làm số ca giảm khoảng 99%
+            không phản ánh quy luật tự nhiên, 2022 để riêng cho kiểm định ngoài mẫu.
+          </>
+        ) : (
+          <>
+            Dengue thu hẹp 2015-2019 vì 2010-2014 dữ liệu quá thưa (chỉ 5-9 nước, chưa đại diện
+            toàn cầu); chỉ giữ quốc gia có từ 30 tuần báo cáo/năm trở lên.
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -643,6 +826,7 @@ export default function AnalyticsPage() {
     selectedWeek,
   );
   const { performance, isLoading: perfLoading } = useModelPerformance(disease);
+  const { coverage, isLoading: coverageLoading, isError: coverageError } = useTrainingCoverage(disease);
   const { importance, isLoading: featLoading } = useFeatureImportance(disease, 1);
 
   const totalCountries = entries.length;
@@ -668,6 +852,7 @@ export default function AnalyticsPage() {
         display_name_vi: item.display_name_vi ?? metadataByName.get(item.feature)?.display_name_vi ?? null,
         description_vi: item.description_vi ?? metadataByName.get(item.feature)?.description_vi ?? null,
         source_type: item.source_type ?? metadataByName.get(item.feature)?.source_type ?? null,
+        pearson_r: item.pearson_r ?? metadataByName.get(item.feature)?.pearson_r ?? null,
       }));
     }
 
@@ -679,6 +864,7 @@ export default function AnalyticsPage() {
         display_name_vi: metadata?.display_name_vi ?? null,
         description_vi: metadata?.description_vi ?? null,
         source_type: metadata?.source_type ?? null,
+        pearson_r: metadata?.pearson_r ?? null,
       };
     });
   }, [importance]);
@@ -752,6 +938,19 @@ export default function AnalyticsPage() {
         </div>
 
         <Card
+          title="Dữ liệu huấn luyện model"
+          sub="từ disease_cases · nền tảng độ tin cậy"
+        >
+          <TrainingCoveragePanel
+            coverage={coverage}
+            isLoading={coverageLoading}
+            isError={coverageError}
+            color={themeColor}
+            disease={disease}
+          />
+        </Card>
+
+        <Card
           title="Phân bố nhãn nguy cơ"
           sub={`Số quốc gia theo nhãn · Tuần ${String(displayMeta.week).padStart(2, "0")} · Năm ${displayMeta.year}`}
         >
@@ -778,6 +977,35 @@ export default function AnalyticsPage() {
             {!perfLoading && performance && performance.horizons.length > 0 && (
               <>
                 <HorizonMetricsChart horizons={performance.horizons} />
+                <dl className="mt-3 space-y-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 text-[11px] leading-relaxed">
+                  <div className="flex gap-2">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#3b82f6]" />
+                    <div>
+                      <dt className="inline font-semibold text-[var(--color-text-1)]">R² (hệ số xác định): </dt>
+                      <dd className="inline text-[var(--color-text-3)]">
+                        mô hình giải thích được bao nhiêu phần dao động số ca thực tế. Thang 0–1, càng gần 1 càng tốt; 0,80 nghĩa là giải thích được khoảng 80%.
+                      </dd>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#f59e0b]" />
+                    <div>
+                      <dt className="inline font-semibold text-[var(--color-text-1)]">RMSE (sai số toàn phương trung bình): </dt>
+                      <dd className="inline text-[var(--color-text-3)]">
+                        trung bình độ lệch giữa dự báo và thực tế, phạt nặng các lần sai lớn. Càng nhỏ càng tốt. Tính trên thang log1p của số ca.
+                      </dd>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
+                    <div>
+                      <dt className="inline font-semibold text-[var(--color-text-1)]">MAE (sai số tuyệt đối trung bình): </dt>
+                      <dd className="inline text-[var(--color-text-3)]">
+                        trung bình khoảng cách tuyệt đối giữa dự báo và thực tế, ít nhạy với ngoại lệ hơn RMSE. Càng nhỏ càng tốt. Cũng tính trên thang log1p.
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
                 <div className="mt-2 text-[10px] text-[var(--color-text-3)] text-center">
                   {performance.model_type} · trained {performance.horizons[0]?.training_period}
                 </div>

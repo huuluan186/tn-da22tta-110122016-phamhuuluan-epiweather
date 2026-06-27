@@ -1,0 +1,89 @@
+{
+  "disease": "flu",
+  "target": "flu_log",
+  "method": "pearson",
+  "scope": "pooled all countries, 2010-2019 training set",
+  "n_features": 16,
+  "correlations": [
+    {
+      "feature": "flu_log_lag1",
+      "pearson_r": 0.935,
+      "n_obs": 55208
+    },
+    {
+      "feature": "flu_log_lag2",
+      "pearson_r": 0.9046,
+      "n_obs": 55208
+    },
+    {
+      "feature": "flu_log_lag3",
+      "pearson_r": 0.8664,
+      "n_obs": 55208
+    },
+    {
+      "feature": "flu_log_rollmean4",
+      "pearson_r": 0.0682,
+      "n_obs": 55208
+    },
+    {
+      "feature": "flu_log_rollmean8",
+      "pearson_r": 0.0693,
+      "n_obs": 55208
+    },
+    {
+      "feature": "temp_c_lag3",
+      "pearson_r": -0.337,
+      "n_obs": 55208
+    },
+    {
+      "feature": "temp_c_lag7",
+      "pearson_r": -0.317,
+      "n_obs": 55208
+    },
+    {
+      "feature": "humidity_pct_lag1",
+      "pearson_r": 0.0861,
+      "n_obs": 55208
+    },
+    {
+      "feature": "humidity_pct_lag7",
+      "pearson_r": 0.1466,
+      "n_obs": 55208
+    },
+    {
+      "feature": "solar_wm2_lag7",
+      "pearson_r": -0.4053,
+      "n_obs": 55208
+    },
+    {
+      "feature": "dewpoint_c_lag1",
+      "pearson_r": -0.2786,
+      "n_obs": 55208
+    },
+    {
+      "feature": "iso_week_sin",
+      "pearson_r": 0.1824,
+      "n_obs": 55208
+    },
+    {
+      "feature": "iso_week_cos",
+      "pearson_r": 0.1784,
+      "n_obs": 55208
+    },
+    {
+      "feature": "iso_year",
+      "pearson_r": 0.0853,
+      "n_obs": 55208
+    },
+    {
+      "feature": "HEMISPHERE_NH",
+      "pearson_r": -0.0042,
+      "n_obs": 55208
+    },
+    {
+      "feature": "HEMISPHERE_SH",
+      "pearson_r": 0.0042,
+      "n_obs": 55208
+    }
+  ]
+}

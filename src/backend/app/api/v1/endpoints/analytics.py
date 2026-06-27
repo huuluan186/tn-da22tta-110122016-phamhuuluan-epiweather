@@ -4,15 +4,22 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
 from ....core.config import settings
 from ....crud import diseases as disease_crud
 from ....crud import feature_configs as feature_config_crud
 from ....db.session import get_db
+from ....models.observation import DiseaseCase
 from ....services import ml_engine
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+# Training window cố định (xem CLAUDE.md): 2010-2019, bỏ 2020-2021 (COVID/NPI),
+# 2022 dành cho validation.
+TRAIN_YEAR_START = 2010
+TRAIN_YEAR_END = 2019
 
 # MODELS_DIR từ config (env-aware): host = <repo>/ml_models, container = /app/ml_models.
 # KHÔNG tự suy từ parents[N] — số cấp khác nhau giữa host (backend/ là subdir) và
@@ -76,6 +83,62 @@ def model_performance(disease: str):
     }
 
 
+@router.get("/training-coverage/{disease}")
+def training_coverage(disease: str, db: Session = Depends(get_db)):
+    """
+    Độ phủ dữ liệu huấn luyện 2010-2019 từ bảng disease_cases: số năm, số quốc gia,
+    số quan sát theo từng năm, trung bình số tuần báo cáo/quốc gia/năm.
+
+    Phục vụ chứng minh độ tin cậy model (dữ liệu nền tảng rộng đến đâu).
+    """
+    disease_row = disease_crud.get_by_code(db, disease)
+    if disease_row is None:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy bệnh '{disease}'")
+
+    year_filter = (
+        DiseaseCase.disease_id == disease_row.id,
+        DiseaseCase.iso_year.between(TRAIN_YEAR_START, TRAIN_YEAR_END),
+    )
+
+    per_year_rows = (
+        db.query(
+            DiseaseCase.iso_year,
+            func.count().label("observations"),
+            func.count(distinct(DiseaseCase.iso3)).label("n_countries"),
+        )
+        .filter(*year_filter)
+        .group_by(DiseaseCase.iso_year)
+        .order_by(DiseaseCase.iso_year)
+        .all()
+    )
+
+    per_year = [
+        {"year": int(y), "observations": int(obs), "n_countries": int(nc)}
+        for y, obs, nc in per_year_rows
+    ]
+    if not per_year:
+        raise HTTPException(status_code=404, detail=f"Chưa có dữ liệu huấn luyện cho '{disease}'")
+
+    total_obs = sum(p["observations"] for p in per_year)
+    # Mỗi (quốc gia, năm) là một cặp; tổng n_countries qua các năm = số cặp.
+    n_pairs = sum(p["n_countries"] for p in per_year)
+    n_countries = (
+        db.query(func.count(distinct(DiseaseCase.iso3))).filter(*year_filter).scalar() or 0
+    )
+    years = [p["year"] for p in per_year]
+
+    return {
+        "disease": disease,
+        "year_start": min(years),
+        "year_end": max(years),
+        "n_years": len(years),
+        "n_countries": int(n_countries),
+        "total_observations": total_obs,
+        "avg_weeks_per_country_year": round(total_obs / n_pairs, 1) if n_pairs else 0.0,
+        "per_year": per_year,
+    }
+
+
 @router.get("/feature-importance/{disease}")
 def feature_importance(disease: str, horizon: int = 1, db: Session = Depends(get_db)):
     """
@@ -105,6 +168,14 @@ def feature_importance(disease: str, horizon: int = 1, db: Session = Depends(get
         else {}
     )
 
+    # Hệ số tương quan Pearson (feature ↔ log1p số ca) precompute offline — gắn kèm
+    # importance để "chứng minh" mức ảnh hưởng bằng tương quan thực tế trên training set.
+    corr_data = _load_json(ML_MODELS_DIR / f"{prefix}_h1_v1_correlation.json")
+    corr_map = {
+        c["feature"]: c.get("pearson_r")
+        for c in (corr_data.get("correlations", []) if corr_data else [])
+    }
+
     def feature_metadata(feature_name: str) -> dict:
         row = metadata_rows.get(feature_name)
         return {
@@ -112,6 +183,7 @@ def feature_importance(disease: str, horizon: int = 1, db: Session = Depends(get
             "display_name_vi": row.display_name_vi if row else None,
             "description_vi": row.description_vi if row else None,
             "source_type": row.source_type if row else None,
+            "pearson_r": corr_map.get(feature_name),
         }
 
     return {
@@ -126,4 +198,5 @@ def feature_importance(disease: str, horizon: int = 1, db: Session = Depends(get
         "target": data.get("target"),
         "model_type": data.get("model_type"),
         "training_date": data.get("date"),
+        "correlation_scope": corr_data.get("scope") if corr_data else None,
     }
