@@ -16,8 +16,8 @@ eggs/
 .eggs/
 lib/
 lib64/
-!frontend/src/lib/
-!frontend/src/lib/**
+!src/frontend/src/lib/
+!src/frontend/src/lib/**
 parts/
 sdist/
 var/
@@ -236,30 +236,29 @@ __marimo__/
 .codex/
 
 # ERA5 raw NetCDF files — 6.2GB, download lại được từ CDS API
-dataset/weather/era5_raw/
+src/data/weather/era5_raw/
 *.nc
 *.flag
 
 # ERA5 checkpoint files — intermediate, tạo lại được từ era5_raw
-dataset/weather/processed/*_checkpoint.csv
+src/data/weather/processed/*_checkpoint.csv
 
 # Processed CSVs — ignore hầu hết, chỉ giữ feature files cần để chạy FastAPI
-dataset/processed/master_weekly_2010_2019.csv
-dataset/processed/malaria_*.csv
-dataset/processed/rsv_*.csv
-dataset/processed/country_climate_zones.csv
+src/data/processed/master_weekly_2010_2019.csv
+src/data/processed/malaria_*.csv
+src/data/processed/rsv_*.csv
+src/data/processed/country_climate_zones.csv
 # Giữ lại (track):
-#   dataset/processed/features_flu_2010_2019.csv    (~14MB, cần cho FastAPI AR lags)
-#   dataset/processed/features_dengue_2010_2019.csv (~1.6MB, cần cho FastAPI AR lags)
+#   src/data/processed/features_flu_v1.csv    (~14MB, cần cho FastAPI AR lags)
+#   src/data/processed/features_dengue_v1.csv (~1.6MB, cần cho FastAPI AR lags)
 
 # Model artifacts — giữ final models để clone & chạy được ngay
-# models/*.pkl  ← KHÔNG ignore pkl nữa
+# src/ml_models/*.pkl  ← KHÔNG ignore pkl nữa
 # Chỉ ignore large intermediate artifacts nếu có
-models/*.joblib
 *.joblib
 
 # Credentials & secrets
-scripts/notion_config.py
+src/scripts/notion_config.py
 *.pem
 *.key
 
@@ -296,38 +295,38 @@ gemini-dashboard-EpiWatch.html
 lenh_chay_python.txt
 
 # ml_models: chỉ giữ model production backend load (base v2/v4 + multi-horizon h1-h4_v1)
-ml_models/lgbm_flu_regressor_v1*
-ml_models/rf_dengue_regressor_v1*
-ml_models/xgb_flu_classifier_v1*
-ml_models/xgb_flu_classifier_v2*
-ml_models/xgb_flu_classifier_v3*
-ml_models/xgb_dengue_classifier_v1*
-ml_models/xgb_dengue_classifier_v2*
-ml_models/xgb_dengue_classifier_v3*
+src/ml_models/lgbm_flu_regressor_v1*
+src/ml_models/rf_dengue_regressor_v1*
+src/ml_models/xgb_flu_classifier_v1*
+src/ml_models/xgb_flu_classifier_v2*
+src/ml_models/xgb_flu_classifier_v3*
+src/ml_models/xgb_dengue_classifier_v1*
+src/ml_models/xgb_dengue_classifier_v2*
+src/ml_models/xgb_dengue_classifier_v3*
 
 # notebooks: chỉ giữ v7 + final (bản gộp), gỡ các version trung gian
-notebooks/KLTN_EpiWeather_ML.ipynb
-notebooks/KLTN_EpiWeather_ML_Colab.ipynb
-notebooks/KLTN_EpiWeather_ML_Colab_v2.ipynb
-notebooks/KLTN_EpiWeather_ML_v3.ipynb
-notebooks/KLTN_EpiWeather_ML_v4.ipynb
-notebooks/KLTN_EpiWeather_ML_v5.ipynb
-notebooks/KLTN_EpiWeather_ML_v6.ipynb
+src/notebooks/KLTN_EpiWeather_ML.ipynb
+src/notebooks/KLTN_EpiWeather_ML_Colab.ipynb
+src/notebooks/KLTN_EpiWeather_ML_Colab_v2.ipynb
+src/notebooks/KLTN_EpiWeather_ML_v3.ipynb
+src/notebooks/KLTN_EpiWeather_ML_v4.ipynb
+src/notebooks/KLTN_EpiWeather_ML_v5.ipynb
+src/notebooks/KLTN_EpiWeather_ML_v6.ipynb
 
 # scripts: bỏ file vá/tạm/scan trung gian (giữ _pipeline_logger.py — module thật được import)
-scripts/_patch_*
-scripts/_tmp_*
-scripts/_revert_*
-scripts/_add_cell_*
-scripts/_fix_cell_*
-scripts/_scan_*
-scripts/update_notebook_cells.py
-scripts/__pycache__/
+src/scripts/_patch_*
+src/scripts/_tmp_*
+src/scripts/_revert_*
+src/scripts/_add_cell_*
+src/scripts/_fix_cell_*
+src/scripts/_scan_*
+src/scripts/update_notebook_cells.py
+src/scripts/__pycache__/
 
 # Artifacts tạm, backup local
 backups/
-notebooks/*.bak
-notebooks/v*_cells_detail.txt
-notebooks/v*_kdtree_scan.txt
-notebooks/v*_map_scan.txt
+src/notebooks/*.bak
+src/notebooks/v*_cells_detail.txt
+src/notebooks/v*_kdtree_scan.txt
+src/notebooks/v*_map_scan.txt
 threshold_sweep.png

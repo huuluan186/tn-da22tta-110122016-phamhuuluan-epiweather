@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      PYTHONPATH: ${{ github.workspace }}/backend
+      PYTHONPATH: ${{ github.workspace }}/src/backend
     steps:
       - uses: actions/checkout@v4
 
@@ -28,16 +28,16 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: src/backend/requirements.txt
 
       - name: Install deps
-        run: pip install -r backend/requirements.txt
+        run: pip install -r src/backend/requirements.txt
 
       - name: Apply schema (db_init.sql)
         run: |
           python - <<'PY'
           import os, pathlib, psycopg2
-          sql = pathlib.Path("scripts/db_init.sql").read_text(encoding="utf-8")
+          sql = pathlib.Path("src/scripts/db_init.sql").read_text(encoding="utf-8")
           conn = psycopg2.connect(os.environ["DATABASE_URL"])
           conn.autocommit = True
           conn.cursor().execute(sql)
@@ -45,4 +45,4 @@ jobs:
           PY
 
       - name: Bootstrap (migrations + seed reference data + models + features)
-        run: python scripts/bootstrap_db.py
+        run: python src/scripts/bootstrap_db.py

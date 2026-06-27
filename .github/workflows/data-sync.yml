@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      PYTHONPATH: ${{ github.workspace }}/backend
+      PYTHONPATH: ${{ github.workspace }}/src/backend
     steps:
       - uses: actions/checkout@v4
 
@@ -37,22 +37,22 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: src/backend/requirements.txt
 
       - name: Install deps
-        run: pip install -r backend/requirements.txt
+        run: pip install -r src/backend/requirements.txt
 
       - name: Sync FluNet (WHO)
-        run: python scripts/sync_flunet.py --from-year 2024 --trigger scheduled
+        run: python src/scripts/sync_flunet.py --from-year 2024 --trigger scheduled
 
       - name: Sync weather (Open-Meteo)
-        run: python scripts/sync_weather.py --weeks-back "${{ github.event.inputs.weeks_back || '12' }}" --trigger scheduled
+        run: python src/scripts/sync_weather.py --weeks-back "${{ github.event.inputs.weeks_back || '12' }}" --trigger scheduled
 
       - name: Build features (flu)
-        run: python scripts/feature_builder.py --disease flu --from-year "$(date +%Y)" --trigger scheduled
+        run: python src/scripts/feature_builder.py --disease flu --from-year "$(date +%Y)" --trigger scheduled
 
       - name: Build features (dengue)
-        run: python scripts/feature_builder.py --disease dengue --from-year "$(date +%Y)" --trigger scheduled
+        run: python src/scripts/feature_builder.py --disease dengue --from-year "$(date +%Y)" --trigger scheduled
 
       - name: Batch predict (model v2 regressor + v4 classifier)
-        run: python scripts/batch_predict.py --trigger scheduled
+        run: python src/scripts/batch_predict.py --trigger scheduled

@@ -86,52 +86,47 @@ Thuật ngữ dashboard dùng nhất quán: **MỚI NHẤT** là tuần mới nh
 
 ## Cấu trúc thư mục
 
-Source code nằm ở thư mục gốc để tương thích với Docker Compose.
-Chi tiết xem [src/README.md](src/README.md). Tài liệu đồ án xem [docs/SUBMISSION.md](docs/SUBMISSION.md).
+Repository chia hai nhánh theo quy định nộp đồ án: `src/` chứa toàn bộ mã nguồn,
+`docs/` chứa tài liệu. Chi tiết source xem [src/README.md](src/README.md),
+checklist tài liệu nộp xem [docs/SUBMISSION.md](docs/SUBMISSION.md).
 
 ```
 KLTN/
-├── backend/                       ← FastAPI backend (Python 3.11)
-│   ├── app/
-│   │   ├── api/v1/endpoints/      ← REST API: countries, diseases, predictions, risk, analytics
-│   │   ├── core/                  ← Config, logging, exceptions
-│   │   ├── crud/                  ← Database CRUD operations
-│   │   ├── db/                    ← SQLAlchemy session + Alembic migrations
-│   │   ├── models/                ← ORM models (16 bảng)
-│   │   ├── schemas/               ← Pydantic schemas
-│   │   └── services/              ← ML engine, prediction service, risk service
-│   ├── alembic/                   ← DB migrations
-│   ├── tests/                     ← pytest test suite
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/                      ← React + Tailwind CSS + Leaflet + Recharts
-│   ├── src/
-│   │   ├── components/            ← Map, Charts, Sidebar, Alerts
-│   │   ├── pages/                 ← HomePage, DiseaseDetailPage, AnalyticsPage
-│   │   ├── hooks/                 ← useMapData, usePrediction, useRisk
-│   │   └── types/                 ← TypeScript type definitions
-│   └── Dockerfile
-├── notebooks/                     ← ML pipeline notebooks (Google Colab)
-│   └── KLTN_EpiWeather_ML_vFinal.ipynb
-├── ml_models/                     ← Trained model artifacts (.pkl)
-│   ├── lgbm_flu_regressor_h1_v1.pkl
-│   ├── lgbm_flu_regressor_h2..h4_v1.pkl
-│   ├── xgb_flu_classifier_v4.pkl
-│   ├── rf_dengue_regressor_h1_v1.pkl
-│   └── xgb_dengue_classifier_v4.pkl
-├── scripts/
-│   └── seed_countries.py          ← Seed dữ liệu quốc gia vào DB
-├── docs/                          ← Tài liệu đồ án và hướng dẫn
+├── src/                           ← TOÀN BỘ MÃ NGUỒN
+│   ├── backend/                   ← FastAPI backend (Python 3.11)
+│   │   ├── app/
+│   │   │   ├── api/v1/endpoints/  ← REST API: countries, diseases, predictions, risk, analytics
+│   │   │   ├── core/              ← Config, logging, exceptions
+│   │   │   ├── crud/              ← Database CRUD operations
+│   │   │   ├── db/                ← SQLAlchemy session
+│   │   │   ├── models/            ← ORM models (16 bảng)
+│   │   │   ├── schemas/           ← Pydantic schemas
+│   │   │   └── services/          ← ML engine, prediction service, risk service
+│   │   ├── alembic/               ← DB migrations
+│   │   ├── tests/                 ← pytest test suite
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   ├── frontend/                  ← React + Tailwind CSS + Leaflet + Recharts
+│   │   ├── src/                   ← components, pages, hooks, types
+│   │   └── Dockerfile
+│   ├── notebooks/                 ← ML pipeline notebooks (Google Colab)
+│   ├── ml_models/                 ← Trained model artifacts (.pkl + _features/_metrics.json)
+│   │   ├── lgbm_flu_regressor_h1..h4_v1.pkl
+│   │   ├── rf_dengue_regressor_h1..h4_v1.pkl
+│   │   ├── xgb_flu_classifier_v4.pkl
+│   │   └── xgb_dengue_classifier_v4.pkl
+│   ├── data/                      ← Dữ liệu thô + đã xử lý (CSV)
+│   ├── scripts/                   ← Seed, sync data, batch predict, bootstrap DB
+│   ├── kltn_schema.sql            ← Schema PostgreSQL đầy đủ (16 bảng + 1 view)
+│   ├── docker-compose.yml         ← Triển khai toàn bộ stack
+│   ├── Dockerfile.scheduler
+│   └── .env.example
+├── docs/                          ← TÀI LIỆU ĐỒ ÁN
 │   ├── SUBMISSION.md              ← Checklist tài liệu nộp
 │   ├── huong_dan_su_dung.md       ← Hướng dẫn sử dụng dashboard
 │   ├── presentation/              ← Kiến trúc, Q&A bảo vệ
-│   └── figures/                   ← Hình ảnh kiến trúc + biểu đồ ML
-├── src/
-│   └── README.md                  ← Giải thích cấu trúc source code
-├── kltn_schema.sql                ← Schema PostgreSQL đầy đủ (16 bảng)
-├── docker-compose.yml             ← Triển khai toàn bộ stack
-├── Dockerfile.scheduler
-├── .env.example
+│   ├── figures/                   ← Hình kiến trúc + biểu đồ ML
+│   └── diagrams/                  ← ERD, wireframe, sơ đồ luồng
 └── README.md
 ```
 
@@ -153,7 +148,7 @@ KLTN/
 ```bash
 # 1. Clone repo
 git clone https://github.com/huuluan186/tn-da22tta-110122016-phamhuuluan-epiwatch.git
-cd tn-da22tta-110122016-phamhuuluan-epiwatch
+cd tn-da22tta-110122016-phamhuuluan-epiwatch/src
 
 # 2. Tạo file .env từ template
 cp .env.example .env
@@ -169,7 +164,7 @@ docker compose exec backend python scripts/seed_countries.py
 curl http://localhost:8000/health
 ```
 
-API docs: http://localhost:8000/docs
+Frontend: http://localhost:3000 — API docs: http://localhost:8000/docs
 
 ---
 
@@ -177,6 +172,7 @@ API docs: http://localhost:8000/docs
 
 ```bash
 # 1. Tạo virtual environment
+cd src
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # Linux/macOS
@@ -199,11 +195,12 @@ uvicorn app.main:app --reload --port 8000
 
 ### Chạy ML Notebook
 
-Notebook chính nên đối chiếu `KLTN_EpiWeather_ML_v6.ipynb` trước, sau đó dùng `KLTN_EpiWeather_ML_v5.ipynb` để xem pipeline h=1 và validation nền. Chạy trên **Google Colab** (khuyến nghị) hoặc Jupyter local:
+Notebook pipeline ML nằm trong `src/notebooks/`. Chạy trên **Google Colab** (khuyến nghị)
+hoặc Jupyter local:
 
 ```bash
 pip install jupyter xgboost lightgbm optuna prophet scikit-learn pandas numpy
-jupyter notebook KLTN_EpiWeather_ML_v6.ipynb
+jupyter notebook src/notebooks/
 ```
 
 Mount Google Drive hoặc đặt dataset vào `data/processed/` trước khi chạy.
