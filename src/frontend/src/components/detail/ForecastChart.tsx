@@ -9,7 +9,8 @@ interface Props {
 
 export default function ForecastChart({ points, disease }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
-  const color = disease === "flu" ? "#3b82f6" : "#f59e0b";
+  // Tông sáng hơn bản gốc để rõ trên máy chiếu: flu xanh sáng, dengue vàng sáng.
+  const color = disease === "flu" ? "#60a5fa" : "#fbbf24";
 
   useEffect(() => {
     if (!elRef.current || points.length === 0) return;
@@ -53,17 +54,17 @@ export default function ForecastChart({ points, disease }: Props) {
       xAxis: {
         type: "category",
         data: xLabels,
-        axisLine: { lineStyle: { color: "#2a3040" } },
-        axisLabel: { color: "#64748b", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#64748b" } },
+        axisLabel: { color: "#cbd5e1", fontSize: 11 },
         splitLine: { show: false },
       },
       yAxis: {
         type: "value",
-        name: "Cases (predicted)",
-        nameTextStyle: { color: "#64748b", fontSize: 10 },
+        name: "Số ca dự báo",
+        nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
         axisLine: { show: false },
-        axisLabel: { color: "#64748b", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#1e2535", type: "dashed" } },
+        axisLabel: { color: "#cbd5e1", fontSize: 11 },
+        splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
       },
       series: [
         {
@@ -84,7 +85,7 @@ export default function ForecastChart({ points, disease }: Props) {
           symbol: "none",
           areaStyle: {
             color: color.startsWith("#")
-              ? `${color}33` // ~20% opacity
+              ? `${color}40` // ~25% opacity
               : color,
           },
         },
@@ -94,9 +95,9 @@ export default function ForecastChart({ points, disease }: Props) {
           data: cases,
           smooth: true,
           symbol: "circle",
-          symbolSize: 8,
-          lineStyle: { color, width: 2.5 },
-          itemStyle: { color, borderColor: "#0a0f1c", borderWidth: 2 },
+          symbolSize: 10,
+          lineStyle: { color, width: 3.5 },
+          itemStyle: { color, borderColor: "#0f172a", borderWidth: 2 },
           z: 10,
         },
       ],

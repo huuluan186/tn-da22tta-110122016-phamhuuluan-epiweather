@@ -2,13 +2,16 @@ import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useNavigate, useParams } from "react-router-dom";
+import CountryMiniMap from "../components/detail/CountryMiniMap";
 import ForecastChart from "../components/detail/ForecastChart";
+import SeasonalHeatmap from "../components/detail/SeasonalHeatmap";
 import { RISK_LEVELS } from "../constants";
 import { useFeatureImportance } from "../hooks/useAnalytics";
 import { useDiseases } from "../hooks/useDiseases";
 import { useAvailableCountries, useForecast } from "../hooks/useForecast";
 import { useHistory, usePrediction } from "../hooks/usePrediction";
 import FeatureTooltip from "../components/common/FeatureTooltip";
+import InfoTooltip from "../components/common/InfoTooltip";
 import { ECHARTS_COUNTRY_NAMES } from "../lib/mockRisk";
 import { DISEASE_DEFAULTS, useUIStore } from "../store/uiStore";
 import type { AvailableCountry, HistoryPoint } from "../types/api";
@@ -62,7 +65,7 @@ function modelConfidence(r2: number | null) {
 }
 function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu" | "dengue" }) {
 	const elRef = useRef<HTMLDivElement>(null);
-	const color = disease === "flu" ? "#3b82f6" : "#f59e0b";
+	const color = disease === "flu" ? "#60a5fa" : "#fbbf24";
 	const series = useMemo(() => {
 		const slice = points.slice(-52);
 		return {
@@ -91,16 +94,16 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 			xAxis: {
 				type: "category",
 				data: weeks,
-				axisLine: { lineStyle: { color: "#2a3040" } },
-				axisLabel: { color: "#64748b", fontSize: 10, interval: 7 },
+				axisLine: { lineStyle: { color: "#64748b" } },
+				axisLabel: { color: "#cbd5e1", fontSize: 11, interval: 7 },
 				splitLine: { show: false },
 			},
 			yAxis: {
 				type: "value",
 				min: 0,
 				axisLine: { show: false },
-				axisLabel: { color: "#64748b", fontSize: 10 },
-				splitLine: { lineStyle: { color: "#1e2535", type: "dashed" } },
+				axisLabel: { color: "#cbd5e1", fontSize: 11 },
+				splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
 			},
 			series: [
 				{
@@ -108,7 +111,7 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 					data,
 					smooth: true,
 					symbol: "none",
-					lineStyle: { color, width: 2 },
+					lineStyle: { color, width: 3 },
 					areaStyle: {
 						color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
 							{ offset: 0, color: color.replace(")", ",0.25)").replace("rgb", "rgba") },
@@ -142,6 +145,7 @@ export default function DiseaseDetailPage() {
 		latestWeek,
 		setYear,
 		setWeek,
+		setSelectedIso3,
 	} = useUIStore();
 	const { getDisease } = useDiseases();
 	const { available } = useAvailableCountries(disease);
@@ -162,6 +166,16 @@ export default function DiseaseDetailPage() {
 			setActivePeriod({ year: uiYear, week: uiWeek });
 		}
 	}, [disease, uiYear, uiWeek]);
+
+	// Đặt tiêu đề tab trình duyệt theo quốc gia + bệnh đang xem.
+	useEffect(() => {
+		const name = iso3 ? (ECHARTS_COUNTRY_NAMES[iso3.toUpperCase()] ?? iso3.toUpperCase()) : null;
+		const diseaseLabel = getDisease(disease).label;
+		document.title = name ? `EpiWatch · ${name} · ${diseaseLabel}` : "EpiWatch";
+		return () => {
+			document.title = "EpiWatch";
+		};
+	}, [iso3, disease, getDisease]);
 
 	const {
 		forecast,
@@ -242,6 +256,12 @@ export default function DiseaseDetailPage() {
 		isLoading: historyLoading,
 		isError: historyError,
 	} = useHistory(disease, iso3, historyStartYear, historyEndYear, 52);
+	// Lịch sử đầy đủ 2010-2019 (không giới hạn 52 tuần) cho heatmap mùa vụ.
+	const {
+		history: seasonalHistory,
+		isLoading: seasonalLoading,
+		isError: seasonalError,
+	} = useHistory(disease, iso3, 2010, 2019);
 	const riskLevel = toRiskLevel(prediction?.risk_level);
 	const riskDef = RISK_LEVELS[riskLevel];
 	const riskLabel = riskDef.label;
@@ -267,18 +287,19 @@ export default function DiseaseDetailPage() {
 
 	return (
 		<div className="flex-1 overflow-y-auto bg-[var(--color-bg)] p-6">
-			<div className="max-w-[860px] mx-auto flex flex-col gap-5">
-				<button
-					onClick={() => navigate("/")}
-					className="self-start text-[var(--color-text-3)] hover:text-[var(--color-text-1)] text-xs"
-				>
-					← Quay lại bản đồ
-				</button>
-
-				<div className="flex items-start justify-between gap-4">
-					<div>
-						<h1 className="text-2xl font-semibold text-[var(--color-text-1)]">{countryName}</h1>
-						<p className="mt-1 text-sm text-[var(--color-text-3)]">
+			<div className="max-w-[1180px] mx-auto flex flex-col gap-5">
+				<div className="flex items-start justify-between gap-4 flex-wrap">
+					<div className="flex flex-col gap-1.5">
+						<button
+							onClick={() => navigate("/")}
+							className="self-start text-[var(--color-text-3)] hover:text-[var(--color-text-1)] text-xs"
+						>
+							← Quay lại bản đồ
+						</button>
+						<h1 className="text-2xl font-semibold text-[var(--color-text-1)] leading-tight">
+							Kết quả phân tích — {countryName}
+						</h1>
+						<p className="text-sm text-[var(--color-text-3)]">
 							{d.label} · Tuần {String(displayWeek).padStart(2, "0")} · Năm {displayYear}
 						</p>
 					</div>
@@ -294,7 +315,27 @@ export default function DiseaseDetailPage() {
 						</div>
 					</div>
 				</div>
-				<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+
+				<div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
+				<aside className="flex flex-col gap-3 lg:sticky lg:top-0">
+					<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col gap-2.5">
+						<div className="dashboard-section-title">Vị trí trên bản đồ</div>
+						<CountryMiniMap
+							iso3={iso3}
+							riskColor={riskDef.color}
+							onClick={() => {
+								setSelectedIso3(iso3.toUpperCase());
+								navigate("/");
+							}}
+						/>
+						<p className="text-[11px] text-[var(--color-text-3)] leading-relaxed">
+							Bấm vào bản đồ để xem quốc gia này trên bản đồ rủi ro toàn cầu.
+						</p>
+					</div>
+				</aside>
+
+				<div className="flex flex-col gap-5 min-w-0">
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 					{[
 						{
 							label: "Số ca dự báo",
@@ -321,15 +362,16 @@ export default function DiseaseDetailPage() {
 							value: forecastLoading ? "…" : modelConfidenceLabel,
 							sub: `So với dữ liệu cũ: ${confidence.label}`,
 							color: confidence.color,
+							info: "Độ tin cậy lấy từ R² (hệ số xác định) của mô hình theo walk-forward CV: đo mô hình giải thích được bao nhiêu phần dao động số ca thực tế. Thang 0–100%, càng cao càng đáng tin. Trên 80% là cao, 50–80% trung bình, dưới 50% là thấp.",
 						},
-						{ label: "Bệnh", value: d.label, sub: "" },
 					].map((stat) => (
 						<div
 							key={stat.label}
 							className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4"
 						>
-							<div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
+							<div className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
 								{stat.label}
+								{"info" in stat && stat.info && <InfoTooltip text={stat.info} />}
 							</div>
 							<div
 								className="text-2xl font-semibold text-[var(--color-text-1)]"
@@ -350,8 +392,9 @@ export default function DiseaseDetailPage() {
 					{/* Header: title + as-of label + shared week filter */}
 					<div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
 						<div>
-							<div className="text-[13px] font-semibold text-[var(--color-text-1)]">
+							<div className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--color-text-1)]">
 								Dự báo 4 tuần · {d.label}
+								<InfoTooltip text="Đường đậm là số ca dự báo cho 4 tuần kế tiếp. Dải mờ quanh đường là khoảng tin cậy ±RMSE (sai số toàn phương trung bình của mô hình theo walk-forward CV), đã quy đổi ngược từ thang log1p về số ca. Dải càng hẹp thì dự báo càng chắc." />
 								{isLatestMode && (
 									<span className="ml-2 text-[10px] font-normal text-emerald-400">● mới nhất</span>
 								)}
@@ -449,6 +492,29 @@ export default function DiseaseDetailPage() {
 				</div>
 
 				<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+					<div className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--color-text-1)] mb-1">
+						Quy luật mùa vụ · {d.label}
+						<InfoTooltip text="Mỗi hàng là một năm trong giai đoạn huấn luyện, mỗi cột là một tuần ISO trong năm. Ô càng đậm (đỏ) thì số ca thực tế tuần đó càng cao. Các vệt đậm xếp thẳng cột qua nhiều năm cho thấy bệnh bùng phát lặp lại đúng mùa hằng năm." />
+					</div>
+					<div className="mb-4 text-[11px] text-[var(--color-text-3)]">
+						Số ca thực tế theo tuần × năm trong giai đoạn huấn luyện — cột đậm lặp lại = đỉnh mùa hằng năm
+					</div>
+					{seasonalLoading && (
+						<div className="h-[260px] grid place-items-center text-[var(--color-text-3)] text-xs">
+							Đang tải lịch sử mùa vụ…
+						</div>
+					)}
+					{!seasonalLoading && seasonalError && (
+						<div className="h-[260px] grid place-items-center text-[var(--color-text-3)] text-xs">
+							Chưa có dữ liệu lịch sử 2010-2019 từ API.
+						</div>
+					)}
+					{!seasonalLoading && !seasonalError && seasonalHistory && (
+						<SeasonalHeatmap points={seasonalHistory.points} disease={disease} />
+					)}
+				</div>
+
+				<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
 					<div className="text-[13px] font-semibold text-[var(--color-text-1)] mb-4">
 						Xu hướng 52 tuần · {d.label}
 					</div>
@@ -520,7 +586,9 @@ export default function DiseaseDetailPage() {
 						</div>
 					)}
 				</div>
+				</div>
 			</div>
+		</div>
 		</div>
 	);
 }
