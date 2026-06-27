@@ -1,0 +1,264 @@
+// DBML schema cho dbdiagram.io — kltn_epiweather
+// Chỉ gồm 16 bảng chính + 1 materialized view (bỏ toàn bộ partition tables)
+// Paste nội dung file này vào dbdiagram.io → Import → DBML
+
+// ── Tầng 0: Địa lý ──────────────────────────────────────────────────────────
+
+Table countries {
+  iso3            char(3)       [pk]
+  iso2            char(2)
+  country_name    varchar(100)  [not null]
+  who_region      varchar(10)
+  who_region_enc  smallint
+  latitude        float
+  longitude       float
+  population      bigint
+  created_at      timestamptz
+}
+
+// ── Tầng 1: Danh mục cấu hình ───────────────────────────────────────────────
+
+Table diseases {
+  id               integer      [pk, increment]
+  code             varchar(20)  [unique, not null]
+  display_name     varchar(100) [not null]
+  target_variable  varchar(50)  [not null]
+  target_transform varchar(20)  [default: 'log1p']
+  is_active        boolean      [default: true]
+  description      text
+  created_at       timestamptz
+  display_name_vi  varchar(100)
+  description_vi   text
+}
+
+Table data_sources {
+  id               integer      [pk, increment]
+  code             varchar(30)  [unique, not null]
+  source_type      varchar(20)  [not null]
+  url              text
+  update_frequency varchar(20)
+  spatial_coverage varchar(50)
+  temporal_start   date
+  is_active        boolean      [default: true]
+  description      text
+}
+
+Table weather_variables {
+  id           integer      [pk, increment]
+  code         varchar(50)  [not null]
+  display_name varchar(100)
+  unit         varchar(20)
+  source_id    integer      [ref: > data_sources.id]
+  era5_variable varchar(100)
+  description  text
+  is_active    boolean      [default: true]
+}
+
+// ── Tầng 2: Quan sát (chuỗi thời gian) ─────────────────────────────────────
+
+Table disease_cases {
+  id                bigint    [pk, increment]
+  disease_id        integer   [not null, ref: > diseases.id]
+  iso3              char(3)   [not null, ref: > countries.iso3]
+  source_id         integer   [ref: > data_sources.id]
+  iso_year          smallint  [not null]
+  iso_week          smallint  [not null]
+  raw_count         integer
+  transformed_value float
+  data_quality      smallint  [default: 1]
+  ingested_at       timestamptz
+
+  Note: 'Partitioned by iso_year (2010–2022 + default)'
+}
+
+Table weather_observations {
+  id          bigint    [pk, increment]
+  iso3        char(3)   [not null, ref: > countries.iso3]
+  source_id   integer   [not null, ref: > data_sources.id]
+  iso_year    smallint  [not null]
+  iso_week    smallint  [not null]
+  data        jsonb     [not null]
+  ingested_at timestamptz
+
+  Note: 'JSONB: key = weather_variables.code, value = float. Partitioned by iso_year.'
+}
+
+// ── Tầng 3: Pipeline học máy ────────────────────────────────────────────────
+
+Table feature_configs {
+  id              integer      [pk, increment]
+  disease_id      integer      [not null, ref: > diseases.id]
+  feature_name    varchar(100) [not null]
+  source_type     varchar(20)  [not null]
+  weather_variable varchar(50)
+  lag_weeks       smallint     [default: 0]
+  transform       varchar(20)  [default: 'none']
+  ar_target       varchar(50)
+  ar_lag_weeks    smallint
+  is_active       boolean      [default: true]
+  version_tag     varchar(30)
+  display_name_vi varchar(150)
+  description_vi  varchar(500)
+}
+
+Table feature_snapshots {
+  disease_id      integer   [not null, ref: > diseases.id]
+  iso3            char(3)   [not null, ref: > countries.iso3]
+  iso_year        smallint  [not null]
+  iso_week        smallint  [not null]
+  features        jsonb     [not null]
+  feature_version varchar(10) [not null, default: 'v1']
+  created_at      timestamptz
+  updated_at      timestamptz
+
+  indexes {
+    (disease_id, iso3, iso_year, iso_week, feature_version) [pk]
+  }
+
+  Note: 'Pre-computed feature vectors cho on-demand inference'
+}
+
+Table model_versions {
+  id                 integer      [pk, increment]
+  disease_id         integer      [not null, ref: > diseases.id]
+  version            varchar(30)  [not null]
+  algorithm          varchar(30)  [default: 'XGBoost']
+  description        text
+  train_year_start   smallint     [not null]
+  train_year_end     smallint     [not null]
+  val_year           smallint
+  feature_config_tag varchar(30)
+  hyperparams        jsonb
+  artifact_path      varchar(255)
+  is_active          boolean      [default: false]
+  is_champion        boolean      [default: false]
+  created_at         timestamptz
+}
+
+Table model_evaluations {
+  id               integer     [pk, increment]
+  model_version_id integer     [not null, ref: > model_versions.id]
+  eval_set         varchar(30) [not null]
+  eval_type        varchar(20) [not null]
+  r2_score         float
+  mae              float
+  rmse             float
+  smape_nonzero    float
+  risk_macro_f1    float
+  risk_accuracy    float
+  risk_low_f1      float
+  risk_medium_f1   float
+  risk_high_f1     float
+  n_samples        integer
+  notes            text
+  evaluated_at     timestamptz
+}
+
+Table risk_thresholds {
+  id                 integer     [pk, increment]
+  disease_id         integer     [not null, ref: > diseases.id]
+  iso3               varchar(10) [not null]
+  q33                float       [not null]
+  q67                float       [not null]
+  n_nonzero_weeks    integer
+  is_global_fallback boolean     [default: false]
+  model_version_id   integer     [ref: > model_versions.id]
+  updated_at         timestamptz
+}
+
+Table predictions {
+  id               bigint      [pk, increment]
+  disease_id       integer     [not null, ref: > diseases.id]
+  iso3             char(3)     [not null, ref: > countries.iso3]
+  iso_year         smallint    [not null]
+  iso_week         smallint    [not null]
+  horizon_weeks    smallint    [default: 1]
+  predicted_value  float
+  predicted_cases  float
+  risk_level       varchar(10)
+  risk_q33         float
+  risk_q67         float
+  model_version_id integer     [ref: > model_versions.id]
+  features_snapshot jsonb
+  confidence_lo    float
+  confidence_hi    float
+  created_at       timestamptz
+  risk_probability float
+
+  Note: 'Partitioned by iso_year'
+}
+
+// ── Tầng 4: Vận hành (MLOps) ────────────────────────────────────────────────
+
+Table pipeline_runs {
+  run_id           uuid        [pk]
+  pipeline_name    varchar(50) [not null]
+  pipeline_version varchar(20)
+  trigger_type     varchar(20) [default: 'manual']
+  status           varchar(20) [not null]
+  iso_year         smallint
+  iso_week         smallint
+  started_at       timestamptz [not null]
+  completed_at     timestamptz
+  duration_sec     float
+  rows_processed   integer
+  rows_inserted    integer
+  rows_updated     integer
+  rows_skipped     integer
+  errors           jsonb
+  metadata         jsonb
+}
+
+Table data_quality_checks {
+  id           integer     [pk, increment]
+  run_id       uuid        [ref: > pipeline_runs.run_id]
+  check_name   varchar(100) [not null]
+  table_name   varchar(50)
+  iso_year     smallint
+  iso_week     smallint
+  threshold    float
+  actual_value float
+  passed       boolean     [not null]
+  detail       text
+  checked_at   timestamptz
+}
+
+Table api_request_logs {
+  id               bigint      [pk, increment]
+  endpoint         varchar(100)
+  method           varchar(10)
+  disease          varchar(20)
+  iso3             char(3)
+  iso_year         smallint
+  iso_week         smallint
+  model_version_id integer
+  response_ms      integer
+  status_code      smallint
+  requested_at     timestamptz [not null]
+
+  Note: 'Partitioned by requested_at'
+}
+
+Table alembic_version {
+  version_num varchar(32) [pk]
+
+  Note: 'Bảng hệ thống do Alembic quản lý — 1 dòng duy nhất'
+}
+
+// ── Tầng 5: Khung nhìn vật chất hóa ────────────────────────────────────────
+
+Table mv_latest_predictions {
+  disease_id      integer
+  disease_code    varchar(20)
+  iso3            char(3)
+  country_name    varchar(100)
+  who_region      varchar(10)
+  iso_year        smallint
+  iso_week        smallint
+  horizon_weeks   smallint
+  predicted_cases float
+  risk_level      varchar(10)
+  created_at      timestamptz
+
+  Note: 'Materialized View — JOIN predictions + diseases + countries. Làm mới sau mỗi lần scheduler chạy.'
+}

@@ -1,6 +1,8 @@
 # EpiWeather — Hệ thống Cảnh báo Nguy cơ Dịch bệnh Theo Mùa
 
-> Đồ án tốt nghiệp (KLTN) — Đại học Duy Tân, Khoa Công nghệ Thông tin
+> Đồ án tốt nghiệp (KLTN) — Đại học Trà Vinh, Khoa Công nghệ Thông tin
+>
+> **Sinh viên:** Phạm Hữu Luân · **MSSV:** 110122016 · **Lớp:** DA22TTA
 
 Hệ thống tích hợp dữ liệu y tế toàn cầu (WHO FluNet, WHO Dengue) và dữ liệu khí hậu (ERA5/ECMWF) để dự báo nguy cơ dịch cúm và sốt xuất huyết theo tuần, cấp quốc gia. Pipeline gồm hai nhánh song song: **Regression** (dự báo số ca) và **Classification** (cảnh báo mức độ Low/Medium/High).
 
@@ -84,38 +86,51 @@ Thuật ngữ dashboard dùng nhất quán: **MỚI NHẤT** là tuần mới nh
 
 ## Cấu trúc thư mục
 
+Source code nằm ở thư mục gốc để tương thích với Docker Compose.
+Chi tiết xem [src/README.md](src/README.md). Tài liệu đồ án xem [docs/SUBMISSION.md](docs/SUBMISSION.md).
+
 ```
 KLTN/
-├── backend/
+├── backend/                       ← FastAPI backend (Python 3.11)
 │   ├── app/
-│   │   ├── api/
-│   │   │   ├── health.py          # GET /health
-│   │   │   └── v1/endpoints/      # 7 endpoint modules
-│   │   ├── core/                  # config, exceptions, logging
-│   │   ├── crud/                  # CRUD operations
-│   │   ├── db/                    # session, base, migrations
-│   │   ├── models/                # SQLAlchemy ORM models
-│   │   ├── schemas/               # Pydantic schemas
-│   │   ├── services/              # ml_engine, data_fetcher
-│   │   └── main.py                # FastAPI entry point
-│   ├── alembic/                   # DB migrations
-│   ├── tests/                     # pytest (27 tests)
+│   │   ├── api/v1/endpoints/      ← REST API: countries, diseases, predictions, risk, analytics
+│   │   ├── core/                  ← Config, logging, exceptions
+│   │   ├── crud/                  ← Database CRUD operations
+│   │   ├── db/                    ← SQLAlchemy session + Alembic migrations
+│   │   ├── models/                ← ORM models (16 bảng)
+│   │   ├── schemas/               ← Pydantic schemas
+│   │   └── services/              ← ML engine, prediction service, risk service
+│   ├── alembic/                   ← DB migrations
+│   ├── tests/                     ← pytest test suite
 │   ├── Dockerfile
 │   └── requirements.txt
-├── data/
-│   └── processed/             # Feature CSVs (flu, dengue, master_weekly)
-├── docs/
-│   └── session_summaries/     # Ghi chú sau mỗi buổi làm việc
-├── ml_models/                 # Trained model artifacts (.pkl + _features.json + _metrics.json)
-│   ├── lgbm_flu_regressor_v1.pkl
-│   ├── rf_dengue_regressor_v1.pkl
-│   ├── xgb_flu_classifier_v1.pkl
-│   └── xgb_dengue_classifier_v1.pkl
+├── frontend/                      ← React + Tailwind CSS + Leaflet + Recharts
+│   ├── src/
+│   │   ├── components/            ← Map, Charts, Sidebar, Alerts
+│   │   ├── pages/                 ← HomePage, DiseaseDetailPage, AnalyticsPage
+│   │   ├── hooks/                 ← useMapData, usePrediction, useRisk
+│   │   └── types/                 ← TypeScript type definitions
+│   └── Dockerfile
+├── notebooks/                     ← ML pipeline notebooks (Google Colab)
+│   └── KLTN_EpiWeather_ML_vFinal.ipynb
+├── ml_models/                     ← Trained model artifacts (.pkl)
+│   ├── lgbm_flu_regressor_h1_v1.pkl
+│   ├── lgbm_flu_regressor_h2..h4_v1.pkl
+│   ├── xgb_flu_classifier_v4.pkl
+│   ├── rf_dengue_regressor_h1_v1.pkl
+│   └── xgb_dengue_classifier_v4.pkl
 ├── scripts/
-│   ├── seed_countries.py      # Seed dữ liệu quốc gia vào DB
-│   └── db_init.sql
-├── KLTN_EpiWeather_ML_v5.ipynb   # Notebook ML pipeline chính
-├── docker-compose.yml
+│   └── seed_countries.py          ← Seed dữ liệu quốc gia vào DB
+├── docs/                          ← Tài liệu đồ án và hướng dẫn
+│   ├── SUBMISSION.md              ← Checklist tài liệu nộp
+│   ├── huong_dan_su_dung.md       ← Hướng dẫn sử dụng dashboard
+│   ├── presentation/              ← Kiến trúc, Q&A bảo vệ
+│   └── figures/                   ← Hình ảnh kiến trúc + biểu đồ ML
+├── src/
+│   └── README.md                  ← Giải thích cấu trúc source code
+├── kltn_schema.sql                ← Schema PostgreSQL đầy đủ (16 bảng)
+├── docker-compose.yml             ← Triển khai toàn bộ stack
+├── Dockerfile.scheduler
 ├── .env.example
 └── README.md
 ```
@@ -137,8 +152,8 @@ KLTN/
 
 ```bash
 # 1. Clone repo
-git clone https://github.com/huuluan186/KLTN.git
-cd KLTN
+git clone https://github.com/huuluan186/tn-da22tta-110122016-phamhuuluan-epiwatch.git
+cd tn-da22tta-110122016-phamhuuluan-epiwatch
 
 # 2. Tạo file .env từ template
 cp .env.example .env
@@ -265,7 +280,7 @@ Pipeline gồm 2 nhánh huấn luyện song song, so sánh kết quả:
 | **Lớp** | DA22TTA |
 | **Trường** | Đại học Trà Vinh |
 | **Khoa** | Công nghệ Thông tin |
-| **GVHD** | *(Tên giảng viên hướng dẫn)* |
+| **GVHD** | Bùi Thị Thanh Mai |
 | **Năm** | 2025–2026 |
 | **Liên hệ** | phamhuuluan18.com |
 
