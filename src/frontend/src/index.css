@@ -32,10 +32,10 @@
   --color-risk-none: #2a3040;
 
   --color-map-dark-ocean: #0b1220;
-  --color-map-dark-land: #202838;
+  --color-map-dark-land: #e2e8f0;
   --color-map-dark-border: #0f172a;
   --color-map-dark-risk-border: #0b1220;
-  --color-map-dark-risk-none: #2a3040;
+  --color-map-dark-risk-none: #e2e8f0;
   --color-map-dark-risk-low: #22c55e;
   --color-map-dark-risk-med: #f59e0b;
   --color-map-dark-risk-high: #ef4444;
@@ -49,10 +49,10 @@
   --color-map-dark-muted: #cbd5e1;
 
   --color-map-light-ocean: rgba(225, 241, 255, 0.74);
-  --color-map-light-land: #cbd8e8;
+  --color-map-light-land: #64748b;
   --color-map-light-border: #7c8da5;
   --color-map-light-risk-border: rgba(255, 255, 255, 0.88);
-  --color-map-light-risk-none: #aebdd0;
+  --color-map-light-risk-none: #64748b;
   --color-map-light-risk-low: #16a34a;
   --color-map-light-risk-med: #d97706;
   --color-map-light-risk-high: #dc2626;

@@ -71,7 +71,7 @@ export default function RiskMapSidebar(props: Props) {
   const applyLabel = props.isApplying
     ? "Đang tải..."
     : props.isDirty
-    ? "Xem tuần đã chọn"
+    ? "Dự báo tuần đã chọn"
     : props.isHistorical
     ? `Đang xem ${selectedWeekLabel}`
     : "Đang xem tuần mới nhất";
@@ -146,7 +146,7 @@ export default function RiskMapSidebar(props: Props) {
             </div>
           </SideSection>
 
-          <SideSection label="Vùng WHO">
+          <SideSection label="Quốc gia theo khu vực">
             <RegionFilter
               value={props.regions}
               onToggle={props.toggleRegion}
