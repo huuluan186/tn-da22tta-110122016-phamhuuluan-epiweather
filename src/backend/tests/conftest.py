@@ -33,12 +33,19 @@ _engine = create_engine(
 _TestingSessionLocal = sessionmaker(bind=_engine, autocommit=False, autoflush=False)
 
 
+# Bảng MLOps dùng DDL riêng của PostgreSQL (Computed EXTRACT(EPOCH ...),
+# RANGE partition) — SQLite không dựng được. Các test API không chạm tới chúng
+# nên bỏ qua khi tạo schema SQLite; production vẫn giữ nguyên schema Postgres.
+_POSTGRES_ONLY_TABLES = {"pipeline_runs", "data_quality_checks", "api_request_logs"}
+
+
 @pytest.fixture(scope="session", autouse=True)
 def create_test_schema():
-    """Tạo tất cả bảng trong SQLite in-memory một lần cho cả session."""
-    Base.metadata.create_all(bind=_engine)
+    """Tạo bảng trong SQLite in-memory một lần cho cả session (trừ bảng Postgres-only)."""
+    tables = [t for t in Base.metadata.sorted_tables if t.name not in _POSTGRES_ONLY_TABLES]
+    Base.metadata.create_all(bind=_engine, tables=tables)
     yield
-    Base.metadata.drop_all(bind=_engine)
+    Base.metadata.drop_all(bind=_engine, tables=tables)
 
 
 @pytest.fixture()
