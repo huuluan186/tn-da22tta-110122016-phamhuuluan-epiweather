@@ -272,24 +272,13 @@ Thumbs.db
 *.swp
 *.swo
 
-# --- Dọn repo: gỡ tài liệu dev nội bộ, giữ file nộp đồ án ---
-# docs/ không ignore nữa (cần nộp: huong_dan_su_dung, SUBMISSION, figures, presentation)
-docs/*.srt
-docs/session_summaries/
-docs/AI_AGENT_PLAN.md
-docs/AI_IMPLEMENTATION_ROADMAP.md
-docs/AI_SKILL_PLAN.md
-docs/bao_cao_full_draft.md
-docs/bao_cao_tong_quan_he_thong.md
-docs/bao_cao_tuan_02-09_06_2026.md
-docs/code_flow_BE_to_FE.md
-docs/email_GVHD_tuan5_25-05-2026.md
-docs/huong_phat_trien.md
-docs/huong_phat_trien_phase_D.md
-docs/new_approach_rationale.md
-docs/thuyet_trinh_2_trang_dashboard.md
-docs/thuyet_trinh_bao_cao.md
-docs/tong_quan_cau_truc_du_an_epiweather.md
+# --- docs/: chỉ track file nộp đồ án chính thức theo yêu cầu khoa ---
+# Ignore toàn bộ docs/, chỉ cho phép: huong_dan_su_dung.md + file nộp (.docx/.pdf/.pptx)
+docs/*
+!docs/huong_dan_su_dung.md
+!docs/*.docx
+!docs/*.pdf
+!docs/*.pptx
 .claude/
 gemini-dashboard-EpiWatch.html
 lenh_chay_python.txt
