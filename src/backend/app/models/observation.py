@@ -15,6 +15,7 @@ class DiseaseCase(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     disease_id: Mapped[int] = mapped_column(ForeignKey("diseases.id"))
     iso3: Mapped[str] = mapped_column(String(3), ForeignKey("countries.iso3"))
+    source_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("data_sources.id"))
     iso_year: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     iso_week: Mapped[int] = mapped_column(SmallInteger)
     raw_count: Mapped[int | None] = mapped_column(Integer)

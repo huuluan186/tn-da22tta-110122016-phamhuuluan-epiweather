@@ -1,5 +1,6 @@
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef } from "react";
+import { attachChartResize } from "../../lib/echartsResize";
 import type { HistoryPoint } from "../../types/api";
 
 // Tái hiện Hình 4.4 trong notebook: heatmap số ca theo tuần (cột) × năm (hàng),
@@ -61,7 +62,7 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 			tooltip: {
 				position: "top",
 				backgroundColor: "#1a1f2e",
-				borderColor: "#334155",
+				borderColor: "#475569",
 				textStyle: { color: "#f1f5f9", fontSize: 11 },
 				formatter: (p: { data: [number, number, number] }) => {
 					const [wi, yi, v] = p.data;
@@ -74,17 +75,17 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 				name: "Tuần ISO",
 				nameLocation: "middle",
 				nameGap: 26,
-				nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
+				nameTextStyle: { color: "#e2e8f0", fontSize: 11 },
 				splitArea: { show: false },
-				axisLine: { lineStyle: { color: "#64748b" } },
-				axisLabel: { color: "#cbd5e1", fontSize: 10, interval: 3 },
+				axisLine: { lineStyle: { color: "#94a3b8" } },
+				axisLabel: { color: "#e2e8f0", fontSize: 10, interval: 3 },
 				axisTick: { show: false },
 			},
 			yAxis: {
 				type: "category",
 				data: years.map(String),
-				axisLine: { lineStyle: { color: "#64748b" } },
-				axisLabel: { color: "#cbd5e1", fontSize: 11 },
+				axisLine: { lineStyle: { color: "#94a3b8" } },
+				axisLabel: { color: "#e2e8f0", fontSize: 11 },
 				axisTick: { show: false },
 				splitArea: { show: false },
 			},
@@ -97,7 +98,7 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 				bottom: 4,
 				itemWidth: 16,
 				itemHeight: 200,
-				textStyle: { color: "#cbd5e1", fontSize: 10 },
+				textStyle: { color: "#e2e8f0", fontSize: 10 },
 				inRange: { color: YL_OR_RD },
 			},
 			series: [
@@ -112,12 +113,7 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 			],
 		});
 
-		const onResize = () => ch.resize();
-		window.addEventListener("resize", onResize);
-		return () => {
-			window.removeEventListener("resize", onResize);
-			ch.dispose();
-		};
+		return attachChartResize(elRef.current, ch);
 	}, [years, data, max, disease]);
 
 	if (years.length === 0) {

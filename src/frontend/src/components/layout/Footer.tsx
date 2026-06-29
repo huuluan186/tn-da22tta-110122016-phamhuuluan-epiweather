@@ -34,7 +34,8 @@ export default function Footer() {
           <h4 className="text-[10px] font-bold tracking-[0.08em] text-slate-200 uppercase mb-1.5">
             Đơn vị
           </h4>
-          <div className="text-[var(--color-text-1)] font-semibold">Trường Kỹ thuật và Công nghệ</div>
+          <div className="text-[var(--color-text-1)] font-semibold">Khoa Công nghệ Thông tin</div>
+          <div>Trường Kỹ thuật và Công nghệ</div>
           <div>Đại học Trà Vinh</div>
           <div className="text-slate-300 leading-relaxed">
             126 Nguyễn Thiện Thành,<br />

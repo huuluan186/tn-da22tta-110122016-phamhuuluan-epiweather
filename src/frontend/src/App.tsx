@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Footer from "./components/layout/Footer";
 import TopNav from "./components/layout/TopNav";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -16,12 +16,21 @@ export default function App() {
   const week = latestWeek ?? pickerWeek;
   const year = latestYear ?? pickerYear;
 
+  // Dashboard (bản đồ) kín màn hình, panel cuộn riêng. Các trang dạng tài liệu
+  // (Phân tích, Chi tiết) để cao tự giãn theo nội dung và chỉ dùng scroll của
+  // document — tránh hai thanh scrollbar lồng nhau, chụp full page mới được.
+  const isDashboard = useLocation().pathname === "/";
+
   return (
     <div className="min-h-screen flex flex-col">
       <div className="sticky top-0 z-50">
         <TopNav week={week} year={year} />
       </div>
-      <main className="flex h-[calc(100vh-56px)] overflow-hidden">
+      <main
+        className={`flex ${
+          isDashboard ? "h-[calc(100vh-56px)] overflow-hidden" : "min-h-[calc(100vh-56px)]"
+        }`}
+      >
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />

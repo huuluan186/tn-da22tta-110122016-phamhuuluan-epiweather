@@ -12,6 +12,7 @@ import { useAvailableCountries, useForecast } from "../hooks/useForecast";
 import { useHistory, usePrediction } from "../hooks/usePrediction";
 import FeatureTooltip from "../components/common/FeatureTooltip";
 import InfoTooltip from "../components/common/InfoTooltip";
+import { attachChartResize } from "../lib/echartsResize";
 import { ECHARTS_COUNTRY_NAMES } from "../lib/mockRisk";
 import { DISEASE_DEFAULTS, useUIStore } from "../store/uiStore";
 import type { AvailableCountry, HistoryPoint } from "../types/api";
@@ -86,7 +87,7 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 			tooltip: {
 				trigger: "axis",
 				backgroundColor: "#1a1f2e",
-				borderColor: "#2a3040",
+				borderColor: "#3b4458",
 				textStyle: { color: "#f1f5f9", fontSize: 11 },
 				formatter: (p: { name: string; value: number }[]) =>
 					`${p[0].name}: <b>${p[0].value ?? "—"}</b> cases`,
@@ -94,16 +95,16 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 			xAxis: {
 				type: "category",
 				data: weeks,
-				axisLine: { lineStyle: { color: "#64748b" } },
-				axisLabel: { color: "#cbd5e1", fontSize: 11, interval: 7 },
+				axisLine: { lineStyle: { color: "#94a3b8" } },
+				axisLabel: { color: "#e2e8f0", fontSize: 11, interval: 7 },
 				splitLine: { show: false },
 			},
 			yAxis: {
 				type: "value",
 				min: 0,
 				axisLine: { show: false },
-				axisLabel: { color: "#cbd5e1", fontSize: 11 },
-				splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
+				axisLabel: { color: "#e2e8f0", fontSize: 11 },
+				splitLine: { lineStyle: { color: "#475569", type: "dashed" } },
 			},
 			series: [
 				{
@@ -122,12 +123,7 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 			],
 		});
 
-		const onResize = () => ch.resize();
-		window.addEventListener("resize", onResize);
-		return () => {
-			window.removeEventListener("resize", onResize);
-			ch.dispose();
-		};
+		return attachChartResize(elRef.current, ch);
 	}, [series, disease, color]);
 
 	return <div ref={elRef} className="w-full h-[220px]" />;
@@ -286,7 +282,7 @@ export default function DiseaseDetailPage() {
 	}, [featureImportance]);
 
 	return (
-		<div className="flex-1 overflow-y-auto bg-[var(--color-bg)] p-6">
+		<div className="flex-1 bg-[var(--color-bg)] px-6 md:px-10 lg:px-14 py-6">
 			<div className="max-w-[1180px] mx-auto flex flex-col gap-5">
 				<div className="flex items-start justify-between gap-4 flex-wrap">
 					<div className="flex flex-col gap-1.5">

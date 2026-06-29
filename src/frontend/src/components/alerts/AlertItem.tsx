@@ -51,14 +51,14 @@ export default function AlertItem({ item, isSelected, onSelect }: Props) {
 
       <div className="mt-2 flex items-center gap-2">
         <span
-          className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px]"
+          className="inline-flex items-center gap-1.5 text-[12px] font-semibold px-2 py-1 rounded-[3px]"
           style={{ background: d.color + "22", color: d.color }}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: d.color }} />
           {d.label}
         </span>
         <span
-          className="inline-flex items-center gap-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-[3px] text-white"
+          className="inline-flex items-center gap-1.5 text-[13px] font-bold px-2 py-1 rounded-[3px] text-white"
           style={{ background: RISK_LEVELS[item.risk].color }}
           title="Phần trăm xảy ra (0-100), tính từ xác suất P(High) của model phân loại"
         >

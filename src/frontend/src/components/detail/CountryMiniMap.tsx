@@ -1,5 +1,6 @@
 import * as echarts from "echarts";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { attachChartResize } from "../../lib/echartsResize";
 import { ECHARTS_COUNTRY_NAMES } from "../../lib/mockRisk";
 
 let mapRegistered = false;
@@ -120,11 +121,9 @@ export default function CountryMiniMap({ iso3, riskColor, onClick }: Props) {
 			],
 		});
 
-		const onResize = () => ch.resize();
-		window.addEventListener("resize", onResize);
+		const detach = attachChartResize(elRef.current, ch);
 		return () => {
-			window.removeEventListener("resize", onResize);
-			ch.dispose();
+			detach();
 			chartRef.current = null;
 		};
 	}, [geo, view, echartsName, riskColor]);

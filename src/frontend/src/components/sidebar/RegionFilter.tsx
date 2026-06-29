@@ -46,7 +46,7 @@ export default function RegionFilter({
             <button
               key={pill.id}
               onClick={() => onToggleRiskLevel(pill.id)}
-              className={`text-[10px] px-2 py-0.5 rounded border font-semibold transition-colors ${
+              className={`text-[13px] px-2.5 py-1 rounded border font-semibold transition-colors ${
                 active
                   ? pill.activeClass
                   : "bg-[var(--color-panel-inset)] border-[var(--color-panel-border)] text-slate-100 hover:text-white hover:border-white"
@@ -60,7 +60,7 @@ export default function RegionFilter({
         {riskLevels.length > 0 && (
           <button
             onClick={() => riskLevels.forEach((l) => onToggleRiskLevel(l))}
-            className="text-[10px] px-1.5 py-0.5 rounded border border-[var(--color-panel-border)] bg-[var(--color-panel-inset)] text-slate-100 hover:text-white hover:border-white transition-colors"
+            className="text-[13px] px-2 py-1 rounded border border-[var(--color-panel-border)] bg-[var(--color-panel-inset)] text-slate-100 hover:text-white hover:border-white transition-colors"
             title="Xóa tất cả bộ lọc mức độ"
           >
             ✕

@@ -1,5 +1,6 @@
 import * as echarts from "echarts";
 import { useEffect, useRef } from "react";
+import { attachChartResize } from "../../lib/echartsResize";
 import type { ForecastPoint } from "../../types/api";
 
 interface Props {
@@ -37,7 +38,7 @@ export default function ForecastChart({ points, disease }: Props) {
       tooltip: {
         trigger: "axis",
         backgroundColor: "#1a1f2e",
-        borderColor: "#2a3040",
+        borderColor: "#3b4458",
         textStyle: { color: "#f1f5f9", fontSize: 11 },
         formatter: (params: { dataIndex: number }[]) => {
           const i = params[0].dataIndex;
@@ -54,17 +55,17 @@ export default function ForecastChart({ points, disease }: Props) {
       xAxis: {
         type: "category",
         data: xLabels,
-        axisLine: { lineStyle: { color: "#64748b" } },
-        axisLabel: { color: "#cbd5e1", fontSize: 11 },
+        axisLine: { lineStyle: { color: "#94a3b8" } },
+        axisLabel: { color: "#e2e8f0", fontSize: 11 },
         splitLine: { show: false },
       },
       yAxis: {
         type: "value",
         name: "Số ca dự báo",
-        nameTextStyle: { color: "#cbd5e1", fontSize: 11 },
+        nameTextStyle: { color: "#e2e8f0", fontSize: 11 },
         axisLine: { show: false },
-        axisLabel: { color: "#cbd5e1", fontSize: 11 },
-        splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
+        axisLabel: { color: "#e2e8f0", fontSize: 11 },
+        splitLine: { lineStyle: { color: "#475569", type: "dashed" } },
       },
       series: [
         {
@@ -103,12 +104,7 @@ export default function ForecastChart({ points, disease }: Props) {
       ],
     });
 
-    const onResize = () => ch.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      ch.dispose();
-    };
+    return attachChartResize(elRef.current, ch);
   }, [points, disease, color]);
 
   return <div ref={elRef} className="w-full h-[260px]" />;

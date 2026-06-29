@@ -6,6 +6,7 @@ import { RISK_LEVELS } from "../constants";
 import { useFeatureImportance, useModelPerformance, useTrainingCoverage, type FeatureImportanceItem, type FeatureMetadata, type TrainingCoverage } from "../hooks/useAnalytics";
 import { useDiseases } from "../hooks/useDiseases";
 import { useRiskMap, useRiskMapPeriods } from "../hooks/useRiskMap";
+import { attachChartResize } from "../lib/echartsResize";
 import { useUIStore } from "../store/uiStore";
 import type { RiskEntry, RiskMapPeriod } from "../types/api";
 import type { DiseaseId, RiskLevel } from "../types/domain";
@@ -254,7 +255,7 @@ function TopCountriesChart({ entries, color }: { entries: RiskEntry[]; color: st
       tooltip: {
         trigger: "axis",
         backgroundColor: "#1a1f2e",
-        borderColor: "#2a3040",
+        borderColor: "#3b4458",
         textStyle: { color: "#f1f5f9", fontSize: 11 },
         formatter: (p: { name: string; value: number }[]) =>
           `${p[0].name}: <b>${p[0].value.toLocaleString()}</b> cases`,
@@ -262,14 +263,14 @@ function TopCountriesChart({ entries, color }: { entries: RiskEntry[]; color: st
       xAxis: {
         type: "value",
         axisLine: { show: false },
-        axisLabel: { color: "#64748b", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#1e2535", type: "dashed" } },
+        axisLabel: { color: "#94a3b8", fontSize: 10 },
+        splitLine: { lineStyle: { color: "#3a4358", type: "dashed" } },
       },
       yAxis: {
         type: "category",
         data: data.names,
-        axisLine: { lineStyle: { color: "#2a3040" } },
-        axisLabel: { color: "#94a3b8", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#3b4458" } },
+        axisLabel: { color: "#cbd5e1", fontSize: 10 },
       },
       series: [
         {
@@ -280,12 +281,7 @@ function TopCountriesChart({ entries, color }: { entries: RiskEntry[]; color: st
         },
       ],
     });
-    const onResize = () => ch.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      ch.dispose();
-    };
+    return attachChartResize(ref.current, ch);
   }, [data, color]);
 
   return <div ref={ref} className="w-full h-[300px]" />;
@@ -307,33 +303,33 @@ function HorizonMetricsChart({
       tooltip: {
         trigger: "axis",
         backgroundColor: "#1a1f2e",
-        borderColor: "#2a3040",
+        borderColor: "#3b4458",
         textStyle: { color: "#f1f5f9", fontSize: 11 },
       },
       legend: {
         data: ["R²", "RMSE", "MAE"],
-        textStyle: { color: "#94a3b8", fontSize: 10 },
+        textStyle: { color: "#cbd5e1", fontSize: 10 },
         right: 0,
         top: 0,
       },
       xAxis: {
         type: "category",
         data: horizons.map((h) => `h=${h.horizon}`),
-        axisLine: { lineStyle: { color: "#2a3040" } },
-        axisLabel: { color: "#64748b", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#3b4458" } },
+        axisLabel: { color: "#94a3b8", fontSize: 10 },
       },
       yAxis: {
         type: "value",
         axisLine: { show: false },
-        axisLabel: { color: "#64748b", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#1e2535", type: "dashed" } },
+        axisLabel: { color: "#94a3b8", fontSize: 10 },
+        splitLine: { lineStyle: { color: "#3a4358", type: "dashed" } },
       },
       series: [
         {
           name: "R²",
           type: "bar",
           data: horizons.map((h) => +h.r2.toFixed(3)),
-          itemStyle: { color: "#3b82f6", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#60a5fa", borderRadius: [4, 4, 0, 0] },
           barWidth: 14,
         },
         {
@@ -353,17 +349,12 @@ function HorizonMetricsChart({
           smooth: true,
           symbol: "circle",
           symbolSize: 6,
-          lineStyle: { color: "#10b981", width: 2 },
-          itemStyle: { color: "#10b981" },
+          lineStyle: { color: "#34d399", width: 2 },
+          itemStyle: { color: "#34d399" },
         },
       ],
     });
-    const onResize = () => ch.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      ch.dispose();
-    };
+    return attachChartResize(ref.current, ch);
   }, [horizons]);
 
   return <div ref={ref} className="w-full h-[260px]" />;
@@ -376,11 +367,11 @@ type FeatureImportanceRow = FeatureImportanceItem;
 // weather = khí hậu, ar_lag = dịch tễ quá khứ, calendar = thời gian/mùa vụ,
 // geographic = vị trí địa lý (bán cầu).
 const FEATURE_SOURCE_COLORS: Record<string, string> = {
-  weather: "#10b981",
-  ar_lag: "#3b82f6",
+  weather: "#34d399",
+  ar_lag: "#60a5fa",
   calendar: "#a855f7",
   geographic: "#f59e0b",
-  other: "#94a3b8",
+  other: "#cbd5e1",
 };
 
 function sourceTypeColor(sourceType: string | null): string {
@@ -395,7 +386,7 @@ function featureLabel(metadata: FeatureMetadata): string {
 // hạng nên màu trong donut và bảng luôn khớp nhau. Màu theo nhóm vẫn dùng riêng
 // cho các chip lọc (sourceTypeColor).
 const SLICE_PALETTE = [
-  "#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ef4444",
+  "#60a5fa", "#34d399", "#f59e0b", "#a855f7", "#ef4444",
   "#06b6d4", "#ec4899", "#84cc16", "#f97316", "#6366f1",
 ];
 
@@ -418,7 +409,7 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
       tooltip: {
         trigger: "item",
         backgroundColor: "#1a1f2e",
-        borderColor: "#2a3040",
+        borderColor: "#3b4458",
         textStyle: { color: "#f1f5f9", fontSize: 11 },
         formatter: (item: { name: string; value: number; marker: string }) =>
           `${item.marker}${item.name}: <b>${item.value.toFixed(1)}%</b>`,
@@ -433,7 +424,7 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
           label: {
             show: true,
             formatter: "{c}%",
-            color: "#cbd5e1",
+            color: "#e2e8f0",
             fontSize: 11,
             fontWeight: 600,
           },
@@ -468,19 +459,14 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
           top: "54%",
           style: {
             text: "biến",
-            fill: "#94a3b8",
+            fill: "#cbd5e1",
             fontSize: 11,
             textAlign: "center",
           },
         },
       ],
     });
-    const onResize = () => ch.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      ch.dispose();
-    };
+    return attachChartResize(ref.current, ch);
   }, [topRows]);
 
   return <div ref={ref} className="h-[300px] min-w-0" />;
@@ -657,40 +643,41 @@ function CoverageYearChart({ coverage, color }: { coverage: TrainingCoverage; co
     const years = coverage.per_year.map((p) => String(p.year));
     ch.setOption({
       backgroundColor: "transparent",
-      grid: { top: 24, right: 48, bottom: 28, left: 56 },
+      grid: { top: 34, right: 48, bottom: 28, left: 56 },
       legend: {
         data: ["Số quan sát", "Số quốc gia"],
-        textStyle: { color: "#cbd5e1", fontSize: 10 },
+        textStyle: { color: "#e2e8f0", fontSize: 10 },
         top: 0,
-        right: 0,
+        left: "center",
+        itemGap: 18,
       },
       tooltip: {
         trigger: "axis",
         backgroundColor: "#1a1f2e",
-        borderColor: "#334155",
+        borderColor: "#475569",
         textStyle: { color: "#f1f5f9", fontSize: 11 },
       },
       xAxis: {
         type: "category",
         data: years,
-        axisLine: { lineStyle: { color: "#64748b" } },
-        axisLabel: { color: "#cbd5e1", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#94a3b8" } },
+        axisLabel: { color: "#e2e8f0", fontSize: 10 },
       },
       yAxis: [
         {
           type: "value",
           name: "Quan sát",
-          nameTextStyle: { color: "#cbd5e1", fontSize: 10 },
+          nameTextStyle: { color: "#e2e8f0", fontSize: 10 },
           axisLine: { show: false },
-          axisLabel: { color: "#cbd5e1", fontSize: 10 },
-          splitLine: { lineStyle: { color: "#334155", type: "dashed" } },
+          axisLabel: { color: "#e2e8f0", fontSize: 10 },
+          splitLine: { lineStyle: { color: "#475569", type: "dashed" } },
         },
         {
           type: "value",
           name: "Quốc gia",
-          nameTextStyle: { color: "#cbd5e1", fontSize: 10 },
+          nameTextStyle: { color: "#e2e8f0", fontSize: 10 },
           axisLine: { show: false },
-          axisLabel: { color: "#cbd5e1", fontSize: 10 },
+          axisLabel: { color: "#e2e8f0", fontSize: 10 },
           splitLine: { show: false },
         },
       ],
@@ -715,12 +702,7 @@ function CoverageYearChart({ coverage, color }: { coverage: TrainingCoverage; co
         },
       ],
     });
-    const onResize = () => ch.resize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      ch.dispose();
-    };
+    return attachChartResize(ref.current, ch);
   }, [coverage, color]);
 
   return <div ref={ref} className="w-full h-[240px]" />;
@@ -797,7 +779,7 @@ export default function AnalyticsPage() {
   const setLatest = useUIStore((s) => s.setLatest);
   const { diseases, getDisease } = useDiseases();
   const d = getDisease(disease);
-  const themeColor = disease === "flu" ? "#3b82f6" : "#f59e0b";
+  const themeColor = disease === "flu" ? "#60a5fa" : "#f59e0b";
 
   const riskPeriods = useRiskMapPeriods(disease);
   const sortedPeriods = useMemo(
@@ -870,7 +852,7 @@ export default function AnalyticsPage() {
   }, [importance]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg)]">
+    <div className="flex-1 px-6 md:px-10 lg:px-14 py-6 bg-[var(--color-bg)]">
       <div className="max-w-[1400px] mx-auto flex flex-col gap-4">
 
         {/* Header với disease toggle + meta */}
@@ -979,7 +961,7 @@ export default function AnalyticsPage() {
                 <HorizonMetricsChart horizons={performance.horizons} />
                 <dl className="mt-3 space-y-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 text-[11px] leading-relaxed">
                   <div className="flex gap-2">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#3b82f6]" />
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#60a5fa]" />
                     <div>
                       <dt className="inline font-semibold text-[var(--color-text-1)]">R² (hệ số xác định): </dt>
                       <dd className="inline text-[var(--color-text-3)]">
@@ -997,7 +979,7 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#34d399]" />
                     <div>
                       <dt className="inline font-semibold text-[var(--color-text-1)]">MAE (sai số tuyệt đối trung bình): </dt>
                       <dd className="inline text-[var(--color-text-3)]">
