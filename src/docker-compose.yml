@@ -1,7 +1,11 @@
+name: kltn
+
 services:
 
   db:
-    image: postgres:15-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-epiweather}
@@ -9,7 +13,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-kltn_epiweather}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./scripts/db_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
