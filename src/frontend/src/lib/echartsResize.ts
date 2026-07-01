@@ -3,21 +3,21 @@ import type { ECharts } from "echarts";
 /**
  * Gắn auto-resize cho một instance ECharts.
  *
- * Ngoài việc nghe sự kiện window resize, hàm còn quan sát thay đổi kích thước
- * của chính container qua ResizeObserver: toggle sidebar, reflow grid responsive,
- * hoặc trường hợp chart được init khi panel còn ẩn (width 0). Nếu không xử lý
- * container resize, canvas giữ kích thước cũ và bị tràn khỏi khung trên các màn
- * hình độ phân giải thấp như TV hoặc máy chiếu.
+ * Dùng ResizeObserver trên container thay vì window resize: bắt được cả
+ * toggle sidebar, reflow grid responsive, và chart được init khi panel còn ẩn
+ * (width 0) — những trường hợp window resize không phát hiện được.
+ * ResizeObserver cũng fire khi window resize (container thay đổi theo),
+ * nên không cần window listener riêng — giữ cả hai sẽ gọi chart.resize() 2 lần/event.
  *
  * Trả về hàm cleanup (đã bao gồm dispose chart) để dùng trực tiếp trong useEffect.
  */
 export function attachChartResize(el: HTMLElement, chart: ECharts): () => void {
-  const onResize = () => chart.resize();
-  window.addEventListener("resize", onResize);
+  // Guard chống callback ResizeObserver đã được queue trước khi disconnect() chạy
+  // vẫn fire sau chart.dispose() — ECharts throw "Instance not created" trong trường hợp đó.
+  const onResize = () => { if (!chart.isDisposed()) chart.resize(); };
   const ro = new ResizeObserver(onResize);
   ro.observe(el);
   return () => {
-    window.removeEventListener("resize", onResize);
     ro.disconnect();
     chart.dispose();
   };

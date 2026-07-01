@@ -24,7 +24,7 @@ function Card({
 }) {
   return (
     <div
-      className={`bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5 flex flex-col ${
+      className={`light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-5 flex flex-col ${
         full ? "col-span-2" : ""
       }`}
     >
@@ -170,6 +170,15 @@ function AnalyticsPeriodFilter({
 }
 const RISK_BREAKDOWN_ORDER: RiskLevel[] = ["high", "medium", "low", "none"];
 
+// Màu tối hơn để đặt làm chữ trên nền card trắng — đảm bảo tương phản WCAG AA (large text ≥3:1).
+// RISK_LEVELS giữ màu vibrant cho icon/chip/bản đồ; bảng này chỉ dùng cho text số lớn.
+const RISK_ON_WHITE: Record<RiskLevel, string> = {
+  high: "#dc2626",   // red-600   · 3.9:1
+  medium: "#b45309", // amber-700 · 3.6:1
+  low: "#15803d",    // green-700 · 4.7:1
+  none: "#475569",   // slate-600 · 4.5:1
+};
+
 const RISK_BREAKDOWN_LABELS: Record<RiskLevel, string> = {
   high: "Cao",
   medium: "Trung bình",
@@ -213,7 +222,7 @@ function RiskBreakdown({
                 />
               </div>
               <div>
-                <div className="text-2xl font-semibold tabular-nums text-[var(--color-text-1)]">
+                <div className="text-2xl font-bold tabular-nums" style={{ color: RISK_ON_WHITE[level] }}>
                   {count.toLocaleString()}
                 </div>
                 <div className="text-[10px] text-[var(--color-text-3)] tabular-nums">
@@ -254,23 +263,23 @@ function TopCountriesChart({ entries, color }: { entries: RiskEntry[]; color: st
       grid: { top: 10, right: 30, bottom: 20, left: 110 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1a1f2e",
-        borderColor: "#3b4458",
-        textStyle: { color: "#f1f5f9", fontSize: 11 },
+        backgroundColor: "#ffffff",
+        borderColor: "#cbd5e1",
+        textStyle: { color: "#1e293b", fontSize: 11 },
         formatter: (p: { name: string; value: number }[]) =>
           `${p[0].name}: <b>${p[0].value.toLocaleString()}</b> cases`,
       },
       xAxis: {
         type: "value",
         axisLine: { show: false },
-        axisLabel: { color: "#94a3b8", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#3a4358", type: "dashed" } },
+        axisLabel: { color: "#1e293b", fontSize: 10 },
+        splitLine: { lineStyle: { color: "#e5eaf1", type: "dashed" } },
       },
       yAxis: {
         type: "category",
         data: data.names,
-        axisLine: { lineStyle: { color: "#3b4458" } },
-        axisLabel: { color: "#cbd5e1", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#cbd5e1" } },
+        axisLabel: { color: "#1e293b", fontSize: 10 },
       },
       series: [
         {
@@ -302,34 +311,34 @@ function HorizonMetricsChart({
       grid: { top: 32, right: 16, bottom: 32, left: 40 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1a1f2e",
-        borderColor: "#3b4458",
-        textStyle: { color: "#f1f5f9", fontSize: 11 },
+        backgroundColor: "#ffffff",
+        borderColor: "#cbd5e1",
+        textStyle: { color: "#1e293b", fontSize: 11 },
       },
       legend: {
         data: ["R²", "RMSE", "MAE"],
-        textStyle: { color: "#cbd5e1", fontSize: 10 },
+        textStyle: { color: "#1e293b", fontSize: 10 },
         right: 0,
         top: 0,
       },
       xAxis: {
         type: "category",
         data: horizons.map((h) => `h=${h.horizon}`),
-        axisLine: { lineStyle: { color: "#3b4458" } },
-        axisLabel: { color: "#94a3b8", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#cbd5e1" } },
+        axisLabel: { color: "#1e293b", fontSize: 10 },
       },
       yAxis: {
         type: "value",
         axisLine: { show: false },
-        axisLabel: { color: "#94a3b8", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#3a4358", type: "dashed" } },
+        axisLabel: { color: "#1e293b", fontSize: 10 },
+        splitLine: { lineStyle: { color: "#e5eaf1", type: "dashed" } },
       },
       series: [
         {
           name: "R²",
           type: "bar",
           data: horizons.map((h) => +h.r2.toFixed(3)),
-          itemStyle: { color: "#60a5fa", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: "#3b82f6", borderRadius: [4, 4, 0, 0] },
           barWidth: 14,
         },
         {
@@ -349,8 +358,8 @@ function HorizonMetricsChart({
           smooth: true,
           symbol: "circle",
           symbolSize: 6,
-          lineStyle: { color: "#34d399", width: 2 },
-          itemStyle: { color: "#34d399" },
+          lineStyle: { color: "#10b981", width: 2 },
+          itemStyle: { color: "#10b981" },
         },
       ],
     });
@@ -367,11 +376,11 @@ type FeatureImportanceRow = FeatureImportanceItem;
 // weather = khí hậu, ar_lag = dịch tễ quá khứ, calendar = thời gian/mùa vụ,
 // geographic = vị trí địa lý (bán cầu).
 const FEATURE_SOURCE_COLORS: Record<string, string> = {
-  weather: "#34d399",
-  ar_lag: "#60a5fa",
+  weather: "#10b981",
+  ar_lag: "#3b82f6",
   calendar: "#a855f7",
   geographic: "#f59e0b",
-  other: "#cbd5e1",
+  other: "#94a3b8",
 };
 
 function sourceTypeColor(sourceType: string | null): string {
@@ -386,7 +395,7 @@ function featureLabel(metadata: FeatureMetadata): string {
 // hạng nên màu trong donut và bảng luôn khớp nhau. Màu theo nhóm vẫn dùng riêng
 // cho các chip lọc (sourceTypeColor).
 const SLICE_PALETTE = [
-  "#60a5fa", "#34d399", "#f59e0b", "#a855f7", "#ef4444",
+  "#3b82f6", "#10b981", "#f59e0b", "#a855f7", "#ef4444",
   "#06b6d4", "#ec4899", "#84cc16", "#f97316", "#6366f1",
 ];
 
@@ -408,9 +417,9 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "item",
-        backgroundColor: "#1a1f2e",
-        borderColor: "#3b4458",
-        textStyle: { color: "#f1f5f9", fontSize: 11 },
+        backgroundColor: "#ffffff",
+        borderColor: "#cbd5e1",
+        textStyle: { color: "#1e293b", fontSize: 11 },
         formatter: (item: { name: string; value: number; marker: string }) =>
           `${item.marker}${item.name}: <b>${item.value.toFixed(1)}%</b>`,
       },
@@ -424,13 +433,13 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
           label: {
             show: true,
             formatter: "{c}%",
-            color: "#e2e8f0",
+            color: "#1e293b",
             fontSize: 11,
             fontWeight: 600,
           },
-          labelLine: { show: true, length: 8, length2: 8, lineStyle: { color: "#475569" } },
+          labelLine: { show: true, length: 8, length2: 8, lineStyle: { color: "#94a3b8" } },
           itemStyle: {
-            borderColor: "#1f2937",
+            borderColor: "#ffffff",
             borderWidth: 2,
           },
           data: topRows.map((row, idx) => ({
@@ -447,7 +456,7 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
           top: "44%",
           style: {
             text: String(topRows.length),
-            fill: "#f8fafc",
+            fill: "#1e293b",
             fontSize: 18,
             fontWeight: 700,
             textAlign: "center",
@@ -459,7 +468,7 @@ function FeatureImportanceDonut({ rows }: { rows: FeatureImportanceRow[] }) {
           top: "54%",
           style: {
             text: "biến",
-            fill: "#cbd5e1",
+            fill: "#64748b",
             fontSize: 11,
             textAlign: "center",
           },
@@ -646,38 +655,38 @@ function CoverageYearChart({ coverage, color }: { coverage: TrainingCoverage; co
       grid: { top: 34, right: 48, bottom: 28, left: 56 },
       legend: {
         data: ["Số quan sát", "Số quốc gia"],
-        textStyle: { color: "#e2e8f0", fontSize: 10 },
+        textStyle: { color: "#1e293b", fontSize: 10 },
         top: 0,
         left: "center",
         itemGap: 18,
       },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1a1f2e",
-        borderColor: "#475569",
-        textStyle: { color: "#f1f5f9", fontSize: 11 },
+        backgroundColor: "#ffffff",
+        borderColor: "#cbd5e1",
+        textStyle: { color: "#1e293b", fontSize: 11 },
       },
       xAxis: {
         type: "category",
         data: years,
-        axisLine: { lineStyle: { color: "#94a3b8" } },
-        axisLabel: { color: "#e2e8f0", fontSize: 10 },
+        axisLine: { lineStyle: { color: "#cbd5e1" } },
+        axisLabel: { color: "#1e293b", fontSize: 10 },
       },
       yAxis: [
         {
           type: "value",
           name: "Quan sát",
-          nameTextStyle: { color: "#e2e8f0", fontSize: 10 },
+          nameTextStyle: { color: "#1e293b", fontSize: 10 },
           axisLine: { show: false },
-          axisLabel: { color: "#e2e8f0", fontSize: 10 },
-          splitLine: { lineStyle: { color: "#475569", type: "dashed" } },
+          axisLabel: { color: "#1e293b", fontSize: 10 },
+          splitLine: { lineStyle: { color: "#e5eaf1", type: "dashed" } },
         },
         {
           type: "value",
           name: "Quốc gia",
-          nameTextStyle: { color: "#e2e8f0", fontSize: 10 },
+          nameTextStyle: { color: "#1e293b", fontSize: 10 },
           axisLine: { show: false },
-          axisLabel: { color: "#e2e8f0", fontSize: 10 },
+          axisLabel: { color: "#1e293b", fontSize: 10 },
           splitLine: { show: false },
         },
       ],
@@ -697,8 +706,8 @@ function CoverageYearChart({ coverage, color }: { coverage: TrainingCoverage; co
           smooth: true,
           symbol: "circle",
           symbolSize: 7,
-          lineStyle: { color: "#e2e8f0", width: 2.5 },
-          itemStyle: { color: "#e2e8f0" },
+          lineStyle: { color: "#334155", width: 2.5 },
+          itemStyle: { color: "#334155" },
         },
       ],
     });
@@ -713,12 +722,14 @@ function TrainingCoveragePanel({
   isLoading,
   isError,
   color,
+  textColor,
   disease,
 }: {
   coverage: TrainingCoverage | undefined;
   isLoading: boolean;
   isError: boolean;
   color: string;
+  textColor: string;
   disease: DiseaseId;
 }) {
   if (isLoading) return <LoadingBlock height={300} />;
@@ -742,7 +753,7 @@ function TrainingCoveragePanel({
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
               {k.label}
             </div>
-            <div className="text-2xl font-semibold tabular-nums text-[var(--color-text-1)]">
+            <div className="text-2xl font-bold tabular-nums" style={{ color: textColor }}>
               {k.value}
             </div>
             <div className="text-[10px] text-[var(--color-text-3)] mt-0.5">{k.sub}</div>
@@ -779,7 +790,9 @@ export default function AnalyticsPage() {
   const setLatest = useUIStore((s) => s.setLatest);
   const { diseases, getDisease } = useDiseases();
   const d = getDisease(disease);
-  const themeColor = disease === "flu" ? "#60a5fa" : "#f59e0b";
+  const themeColor = disease === "flu" ? "#3b82f6" : "#f59e0b";
+  // Phiên bản tối hơn để đặt làm màu chữ trên nền card trắng — đảm bảo tương phản WCAG AA large text.
+  const themeTextColor = disease === "flu" ? "#1d4ed8" : "#b45309";
 
   const riskPeriods = useRiskMapPeriods(disease);
   const sortedPeriods = useMemo(
@@ -901,19 +914,19 @@ export default function AnalyticsPage() {
 
         {/* KPI strip */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-4">
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
               Tổng số ca dự báo
             </div>
-            <div className="text-2xl font-semibold text-[var(--color-text-1)] tabular-nums">
+            <div className="text-2xl font-bold tabular-nums" style={{ color: themeTextColor }}>
               {mapLoading ? "…" : Math.round(totalCases).toLocaleString()}
             </div>
           </div>
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+          <div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-4">
             <div className="text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
               Quốc gia có dữ liệu
             </div>
-            <div className="text-2xl font-semibold text-[var(--color-text-1)] tabular-nums">
+            <div className="text-2xl font-bold tabular-nums" style={{ color: themeTextColor }}>
               {mapLoading ? "…" : totalCountries}
             </div>
           </div>
@@ -928,6 +941,7 @@ export default function AnalyticsPage() {
             isLoading={coverageLoading}
             isError={coverageError}
             color={themeColor}
+            textColor={themeTextColor}
             disease={disease}
           />
         </Card>
@@ -961,7 +975,7 @@ export default function AnalyticsPage() {
                 <HorizonMetricsChart horizons={performance.horizons} />
                 <dl className="mt-3 space-y-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] p-3 text-[11px] leading-relaxed">
                   <div className="flex gap-2">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#60a5fa]" />
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#3b82f6]" />
                     <div>
                       <dt className="inline font-semibold text-[var(--color-text-1)]">R² (hệ số xác định): </dt>
                       <dd className="inline text-[var(--color-text-3)]">
@@ -979,7 +993,7 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#34d399]" />
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#10b981]" />
                     <div>
                       <dt className="inline font-semibold text-[var(--color-text-1)]">MAE (sai số tuyệt đối trung bình): </dt>
                       <dd className="inline text-[var(--color-text-3)]">
@@ -1005,13 +1019,6 @@ export default function AnalyticsPage() {
             )}
             {!featLoading && featureRows.length === 0 && (
               <ErrorBlock height={300} />
-            )}
-            {importance && featureRows.length > 0 && (
-              <div className="mt-4 text-[10px] text-[var(--color-text-3)]">
-                Target: <code className="text-[var(--color-text-2)]">{importance.target}</code>
-                {" · "}Mô hình: {importance.model_type}
-                {" · "}Trained: {importance.training_date}
-              </div>
             )}
           </Card>
         </div>

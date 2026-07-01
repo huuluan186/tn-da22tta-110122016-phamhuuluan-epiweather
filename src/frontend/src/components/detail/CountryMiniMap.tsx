@@ -85,6 +85,9 @@ export default function CountryMiniMap({ iso3, riskColor, onClick }: Props) {
 
 	useEffect(() => {
 		if (!elRef.current || !geo || !view) return;
+		// Dispose instance cũ nếu còn sót (React StrictMode double-invoke hoặc deps thay đổi
+		// nhanh trước khi cleanup kịp chạy) để tránh ECharts throw "already initialized".
+		echarts.getInstanceByDom(elRef.current)?.dispose();
 		const ch = echarts.init(elRef.current);
 		chartRef.current = ch;
 

@@ -11,7 +11,7 @@ interface Props {
 export default function ForecastChart({ points, disease }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   // Tông sáng hơn bản gốc để rõ trên máy chiếu: flu xanh sáng, dengue vàng sáng.
-  const color = disease === "flu" ? "#60a5fa" : "#fbbf24";
+  const color = disease === "flu" ? "#2563eb" : "#f59e0b";
 
   useEffect(() => {
     if (!elRef.current || points.length === 0) return;
@@ -37,9 +37,9 @@ export default function ForecastChart({ points, disease }: Props) {
       grid: { top: 20, right: 20, bottom: 56, left: 64 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1a1f2e",
-        borderColor: "#3b4458",
-        textStyle: { color: "#f1f5f9", fontSize: 11 },
+        backgroundColor: "#ffffff",
+        borderColor: "#cbd5e1",
+        textStyle: { color: "#1e293b", fontSize: 11 },
         formatter: (params: { dataIndex: number }[]) => {
           const i = params[0].dataIndex;
           const p = points[i];
@@ -55,17 +55,17 @@ export default function ForecastChart({ points, disease }: Props) {
       xAxis: {
         type: "category",
         data: xLabels,
-        axisLine: { lineStyle: { color: "#94a3b8" } },
-        axisLabel: { color: "#e2e8f0", fontSize: 11 },
+        axisLine: { lineStyle: { color: "#cbd5e1" } },
+        axisLabel: { color: "#475569", fontSize: 11 },
         splitLine: { show: false },
       },
       yAxis: {
         type: "value",
         name: "Số ca dự báo",
-        nameTextStyle: { color: "#e2e8f0", fontSize: 11 },
+        nameTextStyle: { color: "#475569", fontSize: 11 },
         axisLine: { show: false },
-        axisLabel: { color: "#e2e8f0", fontSize: 11 },
-        splitLine: { lineStyle: { color: "#475569", type: "dashed" } },
+        axisLabel: { color: "#475569", fontSize: 11 },
+        splitLine: { lineStyle: { color: "#e5eaf1", type: "dashed" } },
       },
       series: [
         {

@@ -53,7 +53,7 @@ export default function InfoTooltip({ text, align = "start" }: InfoTooltipProps)
 			<button
 				ref={buttonRef}
 				type="button"
-				className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400/60 text-[10px] font-bold leading-none text-slate-100 transition-colors hover:border-white hover:text-white focus:outline-none focus:ring-2 focus:ring-white/40"
+				className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[var(--color-text-3)] text-[10px] font-bold leading-none text-[var(--color-text-2)] transition-colors hover:border-[var(--color-text-1)] hover:text-[var(--color-text-1)] focus:outline-none focus:ring-2 focus:ring-[var(--color-text-1)]/40"
 				aria-label={text}
 				aria-describedby={isOpen ? tooltipId : undefined}
 				onBlur={() => setIsOpen(false)}

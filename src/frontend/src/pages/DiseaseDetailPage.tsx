@@ -66,7 +66,7 @@ function modelConfidence(r2: number | null) {
 }
 function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu" | "dengue" }) {
 	const elRef = useRef<HTMLDivElement>(null);
-	const color = disease === "flu" ? "#60a5fa" : "#fbbf24";
+	const color = disease === "flu" ? "#2563eb" : "#f59e0b";
 	const series = useMemo(() => {
 		const slice = points.slice(-52);
 		return {
@@ -86,25 +86,25 @@ function TrendChart({ points, disease }: { points: HistoryPoint[]; disease: "flu
 			grid: { top: 16, right: 16, bottom: 32, left: 48 },
 			tooltip: {
 				trigger: "axis",
-				backgroundColor: "#1a1f2e",
-				borderColor: "#3b4458",
-				textStyle: { color: "#f1f5f9", fontSize: 11 },
+				backgroundColor: "#ffffff",
+				borderColor: "#cbd5e1",
+				textStyle: { color: "#1e293b", fontSize: 11 },
 				formatter: (p: { name: string; value: number }[]) =>
 					`${p[0].name}: <b>${p[0].value ?? "—"}</b> cases`,
 			},
 			xAxis: {
 				type: "category",
 				data: weeks,
-				axisLine: { lineStyle: { color: "#94a3b8" } },
-				axisLabel: { color: "#e2e8f0", fontSize: 11, interval: 7 },
+				axisLine: { lineStyle: { color: "#cbd5e1" } },
+				axisLabel: { color: "#1e293b", fontSize: 11, interval: 7 },
 				splitLine: { show: false },
 			},
 			yAxis: {
 				type: "value",
 				min: 0,
 				axisLine: { show: false },
-				axisLabel: { color: "#e2e8f0", fontSize: 11 },
-				splitLine: { lineStyle: { color: "#475569", type: "dashed" } },
+				axisLabel: { color: "#1e293b", fontSize: 11 },
+				splitLine: { lineStyle: { color: "#e5eaf1", type: "dashed" } },
 			},
 			series: [
 				{
@@ -223,7 +223,7 @@ export default function DiseaseDetailPage() {
 	if (!iso3) {
 		return (
 			<div className="flex-1 grid place-items-center bg-[var(--color-bg)]">
-				<div className="max-w-[420px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6 text-center">
+				<div className="max-w-[420px] light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-6 text-center">
 					<div className="text-sm font-semibold text-[var(--color-text-1)]">Chưa chọn quốc gia</div>
 					<div className="mt-2 text-xs text-[var(--color-text-3)]">
 						Trang này chỉ hiển thị khi bạn chọn một quốc gia từ bản đồ hoặc danh sách cảnh báo.
@@ -313,8 +313,8 @@ export default function DiseaseDetailPage() {
 				</div>
 
 				<div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
-				<aside className="flex flex-col gap-3 lg:sticky lg:top-0">
-					<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 flex flex-col gap-2.5">
+				<aside className="flex flex-col gap-3 lg:sticky lg:top-[56px]">
+					<div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-4 flex flex-col gap-2.5">
 						<div className="dashboard-section-title">Vị trí trên bản đồ</div>
 						<CountryMiniMap
 							iso3={iso3}
@@ -363,7 +363,7 @@ export default function DiseaseDetailPage() {
 					].map((stat) => (
 						<div
 							key={stat.label}
-							className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4"
+							className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-4"
 						>
 							<div className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-[var(--color-text-3)] mb-1">
 								{stat.label}
@@ -384,7 +384,7 @@ export default function DiseaseDetailPage() {
 					))}
 				</div>
 
-				<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+				<div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-5">
 					{/* Header: title + as-of label + shared week filter */}
 					<div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
 						<div>
@@ -487,7 +487,7 @@ export default function DiseaseDetailPage() {
 					)}
 				</div>
 
-				<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+				<div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-5">
 					<div className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--color-text-1)] mb-1">
 						Quy luật mùa vụ · {d.label}
 						<InfoTooltip text="Mỗi hàng là một năm trong giai đoạn huấn luyện, mỗi cột là một tuần ISO trong năm. Ô càng đậm (đỏ) thì số ca thực tế tuần đó càng cao. Các vệt đậm xếp thẳng cột qua nhiều năm cho thấy bệnh bùng phát lặp lại đúng mùa hằng năm." />
@@ -510,7 +510,7 @@ export default function DiseaseDetailPage() {
 					)}
 				</div>
 
-				<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+				<div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-5">
 					<div className="text-[13px] font-semibold text-[var(--color-text-1)] mb-4">
 						Xu hướng 52 tuần · {d.label}
 					</div>
@@ -529,7 +529,7 @@ export default function DiseaseDetailPage() {
 					)}
 				</div>
 
-				<div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
+				<div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-5">
 					<div className="text-[13px] font-semibold text-[var(--color-text-1)] mb-4">
 						Top 5 yếu tố khí hậu ảnh hưởng nhiều nhất
 						<span className="ml-2 text-[11px] font-normal text-[var(--color-text-3)]">
@@ -568,7 +568,7 @@ export default function DiseaseDetailPage() {
 												backgroundColor: d.color,
 											}}
 										/>
-										<div className="absolute inset-0 grid place-items-center text-[10px] font-bold tabular-nums text-white [text-shadow:0_1px_2px_rgb(0_0_0_/_0.9)]">
+										<div className="absolute inset-0 grid place-items-center text-[10px] font-bold tabular-nums text-[var(--color-text-1)] [text-shadow:0_0_4px_rgba(255,255,255,0.7)]">
 											{(item.importance * 100).toFixed(1)}% / 100%
 										</div>
 									</div>

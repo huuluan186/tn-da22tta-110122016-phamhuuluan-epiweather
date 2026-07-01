@@ -2,10 +2,10 @@
 
 @theme {
   --color-bg: #131c2e;
-  --color-surface: #1e2c42;
-  --color-surface-2: #19253a;
-  --color-surface-3: #27384f;
-  --color-border: #334566;
+  --color-surface: #26384f;
+  --color-surface-2: #1c2b41;
+  --color-surface-3: #324661;
+  --color-border: #3c5170;
   --color-border-soft: #2a3a55;
   --color-text-1: #f1f5f9;
   --color-text-2: #a8b6cc;
@@ -65,6 +65,8 @@
   --color-map-light-surface-border: #94a3b8;
   --color-map-light-muted: #475569;
 
+  --color-primary: #2563eb;
+
   --font-sans: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }
@@ -112,6 +114,28 @@ body {
   min-height: 18px;
   padding: 0 0 0 8px;
   text-transform: uppercase;
+}
+
+/* Card sáng nổi trên nền tối — chỉ áp cho từng card ở 2 trang Chi tiết + Phân tích.
+   Nền trang + header vẫn dùng token tối mặc định; chỉ trong card mới ghi đè token
+   sang bảng màu sáng, nên mọi utility var(--color-*) bên trong card tự thành light. */
+.light-card {
+  --color-surface: #ffffff;
+  --color-surface-2: #f5f8fc;
+  --color-surface-3: #e9eff6;
+  --color-border: #d4ddeb;
+  --color-border-soft: #e3e9f2;
+  --color-text-1: #0f172a;
+  --color-text-2: #1e293b;
+  --color-text-3: #334155;
+  --color-panel-inset: #f1f5f9;
+  --color-panel-border: #cbd5e1;
+  color: var(--color-text-1);
+}
+
+/* Nhãn section (cream trên nền tối) đổi sang amber đậm để đọc được trên card trắng. */
+.light-card .dashboard-section-title {
+  color: #b45309;
 }
 
 ::-webkit-scrollbar {

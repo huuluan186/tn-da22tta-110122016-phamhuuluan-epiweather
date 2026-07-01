@@ -58,12 +58,12 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 
 		ch.setOption({
 			backgroundColor: "transparent",
-			grid: { top: 8, right: 12, bottom: 56, left: 48 },
+			grid: { top: 8, right: 12, bottom: 84, left: 52 },
 			tooltip: {
 				position: "top",
-				backgroundColor: "#1a1f2e",
-				borderColor: "#475569",
-				textStyle: { color: "#f1f5f9", fontSize: 11 },
+				backgroundColor: "#ffffff",
+				borderColor: "#cbd5e1",
+				textStyle: { color: "#1e293b", fontSize: 12 },
 				formatter: (p: { data: [number, number, number] }) => {
 					const [wi, yi, v] = p.data;
 					return `Năm ${years[yi]} · Tuần ${String(wi + 1).padStart(2, "0")}<br/><b>${Math.round(v).toLocaleString("vi-VN")}</b> ca`;
@@ -74,18 +74,18 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 				data: Array.from({ length: WEEKS }, (_, i) => i + 1),
 				name: "Tuần ISO",
 				nameLocation: "middle",
-				nameGap: 26,
-				nameTextStyle: { color: "#e2e8f0", fontSize: 11 },
+				nameGap: 28,
+				nameTextStyle: { color: "#334155", fontSize: 12, fontWeight: "bold" },
 				splitArea: { show: false },
 				axisLine: { lineStyle: { color: "#94a3b8" } },
-				axisLabel: { color: "#e2e8f0", fontSize: 10, interval: 3 },
+				axisLabel: { color: "#334155", fontSize: 11, interval: 3 },
 				axisTick: { show: false },
 			},
 			yAxis: {
 				type: "category",
 				data: years.map(String),
 				axisLine: { lineStyle: { color: "#94a3b8" } },
-				axisLabel: { color: "#e2e8f0", fontSize: 11 },
+				axisLabel: { color: "#334155", fontSize: 12 },
 				axisTick: { show: false },
 				splitArea: { show: false },
 			},
@@ -95,10 +95,10 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 				calculable: true,
 				orient: "horizontal",
 				left: "center",
-				bottom: 4,
-				itemWidth: 16,
-				itemHeight: 200,
-				textStyle: { color: "#e2e8f0", fontSize: 10 },
+				bottom: 10,
+				itemWidth: 14,
+				itemHeight: 180,
+				textStyle: { color: "#334155", fontSize: 11 },
 				inRange: { color: YL_OR_RD },
 			},
 			series: [
@@ -107,8 +107,8 @@ export default function SeasonalHeatmap({ points, disease }: Props) {
 					type: "heatmap",
 					data,
 					progressive: 0,
-					itemStyle: { borderColor: "#0f172a", borderWidth: 0.5 },
-					emphasis: { itemStyle: { borderColor: "#e2e8f0", borderWidth: 1 } },
+					itemStyle: { borderColor: "#ffffff", borderWidth: 0.5 },
+					emphasis: { itemStyle: { borderColor: "#1e293b", borderWidth: 1 } },
 				},
 			],
 		});

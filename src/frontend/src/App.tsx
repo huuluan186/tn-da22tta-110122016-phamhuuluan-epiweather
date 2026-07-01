@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useMatch } from "react-router-dom";
 import Footer from "./components/layout/Footer";
 import TopNav from "./components/layout/TopNav";
 import AnalyticsPage from "./pages/AnalyticsPage";
@@ -19,7 +19,9 @@ export default function App() {
   // Dashboard (bản đồ) kín màn hình, panel cuộn riêng. Các trang dạng tài liệu
   // (Phân tích, Chi tiết) để cao tự giãn theo nội dung và chỉ dùng scroll của
   // document — tránh hai thanh scrollbar lồng nhau, chụp full page mới được.
-  const isDashboard = useLocation().pathname === "/";
+  // useMatch thay pathname === "/" để tận dụng router matching của React Router
+  // thay vì so sánh string thủ công — tránh false-negative khi route thay đổi.
+  const isDashboard = Boolean(useMatch("/"));
 
   return (
     <div className="min-h-screen flex flex-col">
