@@ -91,3 +91,46 @@ export function useFeatureImportance(disease: DiseaseId, horizon = 1) {
   });
   return { importance: data, isLoading, isError };
 }
+
+// ── Feature Signals (dynamic per country × week) ────────────────────────────
+
+export interface FeatureSignalItem {
+  feature: string;
+  value: number | null;
+  importance: number;
+  pearson_r: number | null;
+  direction: "up" | "down" | "neutral";
+  display_name_vi: string | null;
+  description_vi: string | null;
+  source_type: string | null;
+}
+
+export interface FeatureSignalsResponse {
+  disease: string;
+  iso3: string;
+  iso_year: number;
+  iso_week: number;
+  signals: FeatureSignalItem[];
+}
+
+export function useFeatureSignals(
+  disease: DiseaseId,
+  iso3: string | undefined,
+  year: number,
+  week: number,
+) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["feature-signals", disease, iso3, year, week],
+    queryFn: async () =>
+      (
+        await api.get<FeatureSignalsResponse>(
+          `/analytics/feature-signals/${disease}/${iso3}`,
+          { params: { year, week } },
+        )
+      ).data,
+    enabled: !!iso3,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  return { signals: data, isLoading, isError };
+}

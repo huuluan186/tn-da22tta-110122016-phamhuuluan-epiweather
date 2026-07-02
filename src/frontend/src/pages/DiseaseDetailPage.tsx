@@ -6,7 +6,7 @@ import CountryMiniMap from "../components/detail/CountryMiniMap";
 import ForecastChart from "../components/detail/ForecastChart";
 import SeasonalHeatmap from "../components/detail/SeasonalHeatmap";
 import { RISK_LEVELS } from "../constants";
-import { useFeatureImportance } from "../hooks/useAnalytics";
+import { useFeatureSignals } from "../hooks/useAnalytics";
 import { useDiseases } from "../hooks/useDiseases";
 import { useAvailableCountries, useForecast } from "../hooks/useForecast";
 import { useHistory, usePrediction } from "../hooks/usePrediction";
@@ -18,7 +18,17 @@ import { DISEASE_DEFAULTS, useUIStore } from "../store/uiStore";
 import type { AvailableCountry, HistoryPoint } from "../types/api";
 import type { DiseaseId, RiskLevel } from "../types/domain";
 
-const CLIMATE_FEATURE_PATTERN = /temp|humidity|precip|solar|dewpoint/i;
+function formatFeatureValue(feature: string, value: number | null): string {
+	if (value === null) return "—";
+	if (/temp_c|dewpoint_c/.test(feature)) return `${value.toFixed(1)}°C`;
+	if (/humidity_pct/.test(feature)) return `${value.toFixed(1)}%`;
+	if (/solar_wm2/.test(feature)) return `${value.toFixed(0)} W/m²`;
+	if (/precip_mm/.test(feature)) return `${value.toFixed(1)} mm`;
+	if (/iso_year/.test(feature)) return String(Math.round(value));
+	if (/HEMISPHERE/.test(feature)) return value === 1 ? "Có" : "Không";
+	if (/iso_week_sin|iso_week_cos/.test(feature)) return value.toFixed(3);
+	return value.toFixed(3);
+}
 
 type Period = { year: number; week: number };
 function getLatestPeriod(
@@ -271,15 +281,14 @@ export default function DiseaseDetailPage() {
 	const predictedCasesLabel =
 		predictedCases !== null ? Math.round(predictedCases).toLocaleString("vi-VN") : "—";
 	const {
-		importance: featureImportance,
-		isLoading: featureLoading,
-		isError: featureError,
-	} = useFeatureImportance(disease, 1);
-	const climateDrivers = useMemo(() => {
-		return (featureImportance?.importance ?? [])
-			.filter((item) => CLIMATE_FEATURE_PATTERN.test(item.feature))
-			.slice(0, 5);
-	}, [featureImportance]);
+		signals: signalsData,
+		isLoading: signalsLoading,
+		isError: signalsError,
+	} = useFeatureSignals(disease, iso3, displayYear, displayWeek);
+	const topSignals = useMemo(
+		() => (signalsData?.signals ?? []).slice(0, 8),
+		[signalsData],
+	);
 
 	return (
 		<div className="flex-1 bg-[var(--color-bg)] px-6 md:px-10 lg:px-14 py-6">
@@ -530,55 +539,81 @@ export default function DiseaseDetailPage() {
 				</div>
 
 				<div className="light-card bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0_2px_8px_rgba(15,23,42,0.08)] p-5">
-					<div className="text-[13px] font-semibold text-[var(--color-text-1)] mb-4">
-						Top 5 yếu tố khí hậu ảnh hưởng nhiều nhất
-						<span className="ml-2 text-[11px] font-normal text-[var(--color-text-3)]">
-							(liên quan mạnh nhất trong dự báo · tuần kế tiếp)
-						</span>
+					<div className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--color-text-1)] mb-1">
+						Tín hiệu đầu vào tuần này · {d.label}
+						<InfoTooltip text="Giá trị thực tế của các biến đầu vào mà mô hình sử dụng để dự báo cho tuần này tại quốc gia này. ▲ (đỏ) = biến đang đẩy dự báo số ca tăng; ▼ (xanh) = đẩy dự báo giảm. Thanh ngang cho biết mức ảnh hưởng tổng thể của biến trong mô hình." />
 					</div>
-					{featureLoading && (
-						<div className="h-[120px] grid place-items-center text-[var(--color-text-3)] text-xs">
-							Đang tải các yếu tố khí hậu…
+					<div className="mb-4 text-[11px] text-[var(--color-text-3)]">
+						Dữ liệu đầu vào tại {countryName}, Tuần {String(displayWeek).padStart(2, "0")} · Năm {displayYear}
+					</div>
+					{signalsLoading && (
+						<div className="h-[200px] grid place-items-center text-[var(--color-text-3)] text-xs">
+							Đang tải tín hiệu…
 						</div>
 					)}
-					{!featureLoading && featureError && (
-						<div className="h-[120px] grid place-items-center text-[var(--color-text-3)] text-xs">
-							Chưa có dữ liệu mức ảnh hưởng của yếu tố khí hậu.
+					{!signalsLoading && signalsError && (
+						<div className="h-[200px] grid place-items-center text-[var(--color-text-3)] text-xs">
+							Chưa có dữ liệu tín hiệu cho tuần này.
 						</div>
 					)}
-					{!featureLoading && !featureError && climateDrivers.length > 0 && (
-						<div className="space-y-2.5">
-							{climateDrivers.map((item) => (
-								<div key={item.feature}>
-									<div className="mb-1 text-[11px]">
-										<FeatureTooltip metadata={item} />
-									</div>
-									<div
-										className="relative h-6 overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-3)]"
-										role="progressbar"
-										aria-label={`Mức ảnh hưởng của ${item.display_name_vi || item.feature}`}
-										aria-valuemin={0}
-										aria-valuemax={100}
-										aria-valuenow={Number((item.importance * 100).toFixed(1))}
+					{!signalsLoading && !signalsError && topSignals.length > 0 && (
+						<div className="space-y-3">
+							{topSignals.map((signal) => (
+								<div key={signal.feature} className="flex items-start gap-2">
+									<span
+										className={`mt-0.5 text-xs font-bold shrink-0 w-4 text-center ${
+											signal.direction === "up"
+												? "text-rose-500"
+												: signal.direction === "down"
+													? "text-emerald-500"
+													: "text-[var(--color-text-3)]"
+										}`}
+										title={
+											signal.direction === "up"
+												? "Đẩy dự báo số ca tăng"
+												: signal.direction === "down"
+													? "Đẩy dự báo số ca giảm"
+													: "Ảnh hưởng không rõ chiều"
+										}
 									>
+										{signal.direction === "up" ? "▲" : signal.direction === "down" ? "▼" : "—"}
+									</span>
+									<div className="flex-1 min-w-0">
+										<div className="flex items-baseline justify-between gap-2 mb-1">
+											<div className="text-[11px] min-w-0">
+												<FeatureTooltip metadata={signal} />
+											</div>
+											<span className="text-[11px] font-mono tabular-nums text-[var(--color-text-1)] shrink-0">
+												{formatFeatureValue(signal.feature, signal.value)}
+											</span>
+										</div>
 										<div
-											className="absolute inset-y-0 left-0 rounded-md transition-[width] duration-300"
-											style={{
-												width: `${item.importance * 100}%`,
-												backgroundColor: d.color,
-											}}
-										/>
-										<div className="absolute inset-0 grid place-items-center text-[10px] font-bold tabular-nums text-[var(--color-text-1)] [text-shadow:0_0_4px_rgba(255,255,255,0.7)]">
-											{(item.importance * 100).toFixed(1)}% / 100%
+											className="relative h-5 overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface-3)]"
+											role="progressbar"
+											aria-label={`Mức ảnh hưởng: ${(signal.importance * 100).toFixed(1)}%`}
+											aria-valuemin={0}
+											aria-valuemax={100}
+											aria-valuenow={Number((signal.importance * 100).toFixed(1))}
+										>
+											<div
+												className="absolute inset-y-0 left-0 rounded-md transition-[width] duration-300"
+												style={{
+													width: `${signal.importance * 100}%`,
+													backgroundColor: d.color,
+												}}
+											/>
+											<div className="absolute inset-0 grid place-items-center text-[9px] font-bold tabular-nums text-[var(--color-text-1)] [text-shadow:0_0_4px_rgba(255,255,255,0.7)]">
+												{(signal.importance * 100).toFixed(1)}%
+											</div>
 										</div>
 									</div>
 								</div>
 							))}
 						</div>
 					)}
-					{!featureLoading && !featureError && climateDrivers.length === 0 && (
-						<div className="h-[120px] grid place-items-center text-[var(--color-text-3)] text-xs">
-							Chưa có dữ liệu mức ảnh hưởng của yếu tố khí hậu.
+					{!signalsLoading && !signalsError && topSignals.length === 0 && (
+						<div className="h-[200px] grid place-items-center text-[var(--color-text-3)] text-xs">
+							Chưa có dữ liệu tín hiệu cho tuần này.
 						</div>
 					)}
 				</div>

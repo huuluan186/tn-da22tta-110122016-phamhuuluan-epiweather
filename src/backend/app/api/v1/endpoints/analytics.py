@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from ....crud import diseases as disease_crud
 from ....crud import feature_configs as feature_config_crud
 from ....db.session import get_db
 from ....models.observation import DiseaseCase
-from ....services import ml_engine
+from ....services import feature_lookup, ml_engine
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -199,4 +199,109 @@ def feature_importance(disease: str, horizon: int = 1, db: Session = Depends(get
         "model_type": data.get("model_type"),
         "training_date": data.get("date"),
         "correlation_scope": corr_data.get("scope") if corr_data else None,
+    }
+
+
+@router.get("/feature-signals/{disease}/{iso3}")
+def feature_signals(
+    disease: str,
+    iso3: str,
+    year: int = Query(..., ge=2010),
+    week: int = Query(..., ge=1, le=53),
+    db: Session = Depends(get_db),
+):
+    """
+    Tín hiệu tuần này: giá trị thực tế của các feature đầu vào mô hình
+    tại (disease, iso3, year, week), kèm importance + tương quan Pearson
+    + metadata tiếng Việt.
+
+    Khác với /feature-importance (trả importance toàn cục, không đổi theo quốc gia
+    hay tuần), endpoint này trả GIÁ TRỊ THỰC TẾ cho từng biến đầu vào → giải thích
+    TẠI SAO mô hình đưa ra dự báo cụ thể cho tuần này tại quốc gia này.
+    """
+    if disease not in DISEASE_MODEL_PREFIX:
+        raise HTTPException(status_code=400, detail="disease phải là 'flu' hoặc 'dengue'")
+
+    disease_obj = disease_crud.get_by_code(db, disease)
+    if not disease_obj:
+        raise HTTPException(status_code=404, detail=f"Disease '{disease}' không tìm thấy")
+
+    # 1. Lookup feature snapshot cho đúng (disease, iso3, year, week)
+    snapshot = feature_lookup.get_features(db, disease_obj.id, iso3.upper(), year, week)
+    if snapshot is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Không có feature snapshot cho {disease}/{iso3.upper()} "
+                f"tại Tuần {week:02d}, Năm {year}"
+            ),
+        )
+
+    # 2. Feature importance toàn cục (h=1) — dùng để sort theo mức ảnh hưởng
+    try:
+        importance_list = ml_engine.get_horizon_feature_importance(disease, 1)
+    except ValueError:
+        importance_list = []
+    importance_map = {item["feature"]: item["importance"] for item in importance_list}
+
+    # 3. Pearson correlation (precomputed offline trên training set)
+    prefix = DISEASE_MODEL_PREFIX[disease]
+    corr_data = _load_json(ML_MODELS_DIR / f"{prefix}_h1_v1_correlation.json")
+    corr_map = {
+        c["feature"]: c.get("pearson_r")
+        for c in (corr_data.get("correlations", []) if corr_data else [])
+    }
+
+    # 3b. Mean/std mỗi feature trên training set — để tính direction theo tuần.
+    # Direction phải phản ánh GIÁ TRỊ TUẦN NÀY cao/thấp so với bình thường, không
+    # phải chỉ dấu tương quan toàn cục (vốn cố định qua mọi tuần).
+    stats_data = _load_json(ML_MODELS_DIR / f"{prefix}_h1_v1_feature_stats.json")
+    stats_map = stats_data.get("stats", {}) if stats_data else {}
+
+    # 4. Metadata tiếng Việt
+    feature_names = list(importance_map.keys()) if importance_map else list(snapshot.keys())
+    metadata_rows = feature_config_crud.metadata_by_names(db, disease_obj.id, feature_names)
+
+    # 5. Build signals — chỉ lấy features có trong snapshot AND model
+    signals = []
+    for feat_name in feature_names:
+        value = snapshot.get(feat_name)
+        if value is None:
+            continue
+        row = metadata_rows.get(feat_name)
+        pearson_r = corr_map.get(feat_name)
+        imp = importance_map.get(feat_name, 0.0)
+
+        # Direction: giá trị feature TUẦN NÀY đẩy dự báo lên hay xuống?
+        # So value với mean training (độ lệch), rồi nhân dấu tương quan:
+        #   sign(pearson_r × (value − mean)) > 0 → đẩy lên; < 0 → đẩy xuống.
+        # Chuẩn hóa độ lệch theo std để lọc dao động nhỏ (|z| < 0.1 coi là neutral).
+        direction = "neutral"
+        stat = stats_map.get(feat_name)
+        if pearson_r is not None and abs(pearson_r) >= 0.05 and stat:
+            std = stat.get("std") or 0.0
+            deviation = float(value) - stat.get("mean", 0.0)
+            z = (deviation / std) if std > 0 else 0.0
+            if abs(z) >= 0.1:
+                direction = "up" if (pearson_r * deviation) > 0 else "down"
+
+        signals.append({
+            "feature": feat_name,
+            "value": round(float(value), 4),
+            "importance": round(imp, 4),
+            "pearson_r": pearson_r,
+            "direction": direction,
+            "display_name_vi": row.display_name_vi if row else None,
+            "description_vi": row.description_vi if row else None,
+            "source_type": row.source_type if row else None,
+        })
+
+    signals.sort(key=lambda x: x["importance"], reverse=True)
+
+    return {
+        "disease": disease,
+        "iso3": iso3.upper(),
+        "iso_year": year,
+        "iso_week": week,
+        "signals": signals,
     }

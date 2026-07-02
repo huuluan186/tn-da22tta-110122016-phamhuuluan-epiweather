@@ -1,0 +1,89 @@
+{
+  "disease": "flu",
+  "scope": "pooled all countries, 2010-2019 training set",
+  "n_obs": 55208,
+  "n_features": 16,
+  "stats": {
+    "flu_log_lag1": {
+      "mean": 1.765599,
+      "std": 1.825868,
+      "n": 55208
+    },
+    "flu_log_lag2": {
+      "mean": 1.763201,
+      "std": 1.824182,
+      "n": 55208
+    },
+    "flu_log_lag3": {
+      "mean": 1.760818,
+      "std": 1.822752,
+      "n": 55208
+    },
+    "flu_log_rollmean4": {
+      "mean": 1.751865,
+      "std": 1.7559,
+      "n": 55208
+    },
+    "flu_log_rollmean8": {
+      "mean": 1.751272,
+      "std": 1.699365,
+      "n": 55208
+    },
+    "temp_c_lag3": {
+      "mean": 17.335835,
+      "std": 10.541011,
+      "n": 55208
+    },
+    "temp_c_lag7": {
+      "mean": 17.338745,
+      "std": 10.553244,
+      "n": 55208
+    },
+    "humidity_pct_lag1": {
+      "mean": 68.817173,
+      "std": 16.382752,
+      "n": 55208
+    },
+    "humidity_pct_lag7": {
+      "mean": 68.776335,
+      "std": 16.409666,
+      "n": 55208
+    },
+    "solar_wm2_lag7": {
+      "mean": 190.563044,
+      "std": 72.996739,
+      "n": 55208
+    },
+    "dewpoint_c_lag1": {
+      "mean": 10.684725,
+      "std": 9.968872,
+      "n": 55208
+    },
+    "iso_week_sin": {
+      "mean": 0.01592,
+      "std": 0.713827,
+      "n": 55208
+    },
+    "iso_week_cos": {
+      "mean": 0.029411,
+      "std": 0.699523,
+      "n": 55208
+    },
+    "iso_year": {
+      "mean": 2014.793925,
+      "std": 2.838216,
+      "n": 55208
+    },
+    "HEMISPHERE_NH": {
+      "mean": 0.832959,
+      "std": 0.373012,
+      "n": 55208
+    },
+    "HEMISPHERE_SH": {
+      "mean": 0.167041,
+      "std": 0.373012,
+      "n": 55208
+    }
+  },
+  "note": "Mean/std moi feature tren training set — dung cho direction theo tuan: sign(pearson_r * (value - mean))"
+}

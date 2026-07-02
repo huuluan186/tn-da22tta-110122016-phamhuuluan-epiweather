@@ -1,0 +1,84 @@
+{
+  "disease": "dengue",
+  "scope": "pooled all countries, 2010-2019 training set",
+  "n_obs": 5926,
+  "n_features": 15,
+  "stats": {
+    "deng_log_lag6": {
+      "mean": 4.006979,
+      "std": 3.021491,
+      "n": 5926
+    },
+    "deng_log_lag8": {
+      "mean": 3.977136,
+      "std": 3.029211,
+      "n": 5926
+    },
+    "deng_log_lag10": {
+      "mean": 3.949664,
+      "std": 3.034361,
+      "n": 5926
+    },
+    "deng_log_lag12": {
+      "mean": 3.913788,
+      "std": 3.043114,
+      "n": 5926
+    },
+    "deng_log_lag14": {
+      "mean": 3.886761,
+      "std": 3.048018,
+      "n": 5926
+    },
+    "deng_log_rollmean4": {
+      "mean": 4.062274,
+      "std": 2.950764,
+      "n": 5926
+    },
+    "deng_log_rollmean8": {
+      "mean": 4.031085,
+      "std": 2.931989,
+      "n": 5926
+    },
+    "temp_c_lag11": {
+      "mean": 23.018004,
+      "std": 5.424274,
+      "n": 5926
+    },
+    "dewpoint_c_lag8": {
+      "mean": 18.006696,
+      "std": 6.593089,
+      "n": 5926
+    },
+    "precip_mm_lag6": {
+      "mean": 4.374682,
+      "std": 3.307927,
+      "n": 5926
+    },
+    "humidity_pct_lag1": {
+      "mean": 75.001077,
+      "std": 10.774701,
+      "n": 5926
+    },
+    "solar_wm2_lag16": {
+      "mean": 216.222002,
+      "std": 46.349189,
+      "n": 5926
+    },
+    "iso_week_sin": {
+      "mean": -0.042233,
+      "std": 0.703771,
+      "n": 5926
+    },
+    "iso_week_cos": {
+      "mean": -0.040014,
+      "std": 0.708041,
+      "n": 5926
+    },
+    "iso_year": {
+      "mean": 2017.23996,
+      "std": 1.306205,
+      "n": 5926
+    }
+  },
+  "note": "Mean/std moi feature tren training set — dung cho direction theo tuan: sign(pearson_r * (value - mean))"
+}
